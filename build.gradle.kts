@@ -24,17 +24,6 @@ subprojects {
     apply(plugin = "org.jmailen.kotlinter")
 }
 
-tasks.register("clean", Delete::class) {
-    delete(rootProject.layout.buildDirectory)
-}
-
-afterEvaluate {
-    // We install the hook at the first occasion
-    tasks.named("clean") {
-        dependsOn(":installGitHooks")
-    }
-}
-
 tasks {
     /**
      * The detektAll tasks enables parallel usage for detekt so if this project

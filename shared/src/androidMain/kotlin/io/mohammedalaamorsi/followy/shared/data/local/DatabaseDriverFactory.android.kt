@@ -1,0 +1,19 @@
+@file:Suppress("ktlint:standard:filename")
+
+package io.mohammedalaamorsi.followy.shared.data.local
+
+import android.content.Context
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+
+/**
+ * Create an instance of a [SqlDriver] for the Android platform.
+ */
+class AndroidDatabaseDriverFactory(
+    private val context: Context,
+) : DatabaseDriverFactory {
+    override fun createDriver(): SqlDriver? {
+        // TODO: Implement database when needed
+        return null
+    }
+}

@@ -1,0 +1,9 @@
+# GitHub OAuth Credentials Template
+# Copy this file to oauth.properties and add your credentials
+# DO NOT COMMIT oauth.properties TO GIT!
+
+# Register your app at: https://github.com/settings/developers
+# Authorization callback URL: githubfollowy://oauth/callback
+
+GITHUB_CLIENT_ID=your_client_id_here
+GITHUB_CLIENT_SECRET=your_client_secret_here

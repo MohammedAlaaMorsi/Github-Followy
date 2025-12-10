@@ -20,11 +20,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "template.MainKt"
+        mainClass = "io.mohammedalaamorsi.followy.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "template"
+            packageName = "io.mohammedalaamorsi.followy"
             packageVersion = "1.0.0"
         }
     }

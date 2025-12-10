@@ -10,3 +10,6 @@
 local.properties
 .kotlin/
 .fleet/
+
+# OAuth credentials - DO NOT COMMIT
+oauth.properties

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#6366F1" rx="180"/>
+  
+  <!-- GitHub-style octagon -->
+  <path d="M 512 280 L 700 380 L 700 580 L 512 680 L 324 580 L 324 380 Z" 
+        fill="#FFFFFF" opacity="0.2"/>
+  
+  <!-- Main user icon (follower) -->
+  <circle cx="450" cy="480" r="80" fill="#FFFFFF"/>
+  <path d="M 450 580 Q 350 600 350 700 L 550 700 Q 550 600 450 580 Z" 
+        fill="#FFFFFF"/>
+  
+  <!-- Secondary user icon (following) -->
+  <circle cx="574" cy="540" r="60" fill="#E0E7FF"/>
+  <path d="M 574 620 Q 494 635 494 710 L 654 710 Q 654 635 574 620 Z" 
+        fill="#E0E7FF"/>
+  
+  <!-- Connection arrow -->
+  <path d="M 530 510 L 560 530" 
+        stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 555 525 L 570 535 L 560 545" 
+        fill="#FFFFFF"/>
+</svg>

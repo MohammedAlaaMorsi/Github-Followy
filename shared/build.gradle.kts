@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jmailen.gradle.kotlinter.tasks.FormatTask
@@ -34,16 +35,39 @@ kotlin {
     }
 
     jvm("desktop")
+    
+    js(IR) {
+        browser {
+            commonWebpackConfig {
+                cssSupport {
+                    enabled.set(true)
+                }
+            }
+        }
+        binaries.executable()
+    }
+    
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            commonWebpackConfig {
+                cssSupport {
+                    enabled.set(true)
+                }
+            }
+        }
+        binaries.executable()
+    }
 
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
-            implementation(libs.androidx.datastore.preferences)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.apollo.runtime)
@@ -53,21 +77,49 @@ kotlin {
             implementation(libs.coil.ktor)
             implementation(libs.compose.material3.adaptive)
             implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.datetime)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.androidx.navigation.compose)
         }
 
         androidMain.dependencies {
+            implementation(libs.androidx.datastore.preferences)
+            implementation(libs.androidx.security.crypto)
             implementation(libs.cash.sqldelight.android.driver)
             implementation(libs.ktor.client.android)
         }
 
         iosMain.dependencies {
+            implementation(libs.androidx.datastore.preferences)
             implementation(libs.cash.sqldelight.native.driver)
             implementation(libs.ktor.client.darwin)
+        }
+        
+        val desktopMain by getting {
+            dependencies {
+                implementation(libs.androidx.datastore.preferences)
+                implementation(libs.ktor.client.cio)
+            }
+        }
+        
+        val webMain by creating {
+            dependsOn(commonMain.get())
+            dependencies {
+                implementation(libs.ktor.client.js)
+            }
+        }
+        
+        val jsMain by getting {
+            dependsOn(webMain)
+        }
+        
+        val wasmJsMain by getting {
+            dependsOn(webMain)
         }
 
         commonTest.dependencies {
@@ -116,13 +168,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    namespace = "template.shared"
+    namespace = "followy.shared"
 }
 
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("template.shared")
+            packageName.set("io.mohammedalaamorsi.followy.shared")
         }
     }
 }
@@ -130,7 +182,7 @@ sqldelight {
 // NOTE: Replace the template schema.json with the schema for your apollo api.
 apollo {
     service("service") {
-        packageName.set("template.shared")
+        packageName.set("io.mohammedalaamorsi.followy.shared")
     }
 }
 

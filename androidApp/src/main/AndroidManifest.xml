@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".TemplateApp"
+        android:name="followy.TemplateApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -13,14 +13,26 @@
         android:theme="@style/Theme.AppTheme">
 
         <activity
-            android:name="template.MainActivity"
+            android:name="followy.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.AppTheme.NoActionBar"
-            android:windowSoftInputMode="adjustResize">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.App.Starting"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="unspecified">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- OAuth callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="githubfollowy"
+                    android:host="oauth" />
             </intent-filter>
         </activity>
     </application>
