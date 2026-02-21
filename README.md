@@ -28,6 +28,18 @@ A Kotlin Multiplatform app that helps you manage your GitHub followers across **
 - 👤 **User Profile Screen** - View profile details with follow/unfollow actions
 - 🔒 **Restricted User Detection** - Identifies users with private activity or disabled following
 
+## 📸 Screenshots
+
+### 📱 Mobile App
+![Login Screen](screenshots/login_screen.png)
+*Modern login screen with OAuth authentication and gradient design*
+
+![Dashboard](screenshots/dashboard.png)
+*Three-tab dashboard showing followers, follow back, and following lists*
+
+![Profile View](screenshots/profile.png)
+*User profile screen with follow/unfollow actions and user details*
+
 ### 🚧 Planned Features
 - [ ] 🌓 **Dark/Light Theme Support** - Toggle between dark and light themes
 - [ ] 🌍 **Multi-Language Support** - Internationalization for multiple languages
