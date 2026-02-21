@@ -10,6 +10,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.JsonArray
 import io.mohammedalaamorsi.followy.shared.data.models.GitHubUser
 import io.mohammedalaamorsi.followy.shared.utils.SecurityUtils
+import kotlinx.serialization.json.Json
 
 class GitHubApiClient(private val httpClient: HttpClient) {
     
@@ -142,16 +143,37 @@ class GitHubApiClient(private val httpClient: HttpClient) {
     
     suspend fun hasPrivateActivity(username: String): Boolean {
         return try {
-            // Users with private profiles return empty events even if they have repos
-            val events = httpClient.get("https://api.github.com/users/$username/events") {
+            // Get user profile with all fields
+            val userResponse = httpClient.get("https://api.github.com/users/$username") {
+                header("Authorization", getAuthHeader())
                 header("Accept", "application/vnd.github+json")
-            }.body<JsonArray>()
+            }
             
-            val hasPrivate = events.isEmpty()
-            println("GitHubApiClient: User $username has empty events: $hasPrivate (${events.size} events)")
+            if (userResponse.status != HttpStatusCode.OK) {
+                println("GitHubApiClient: Cannot access user $username profile: ${userResponse.status}")
+                return true
+            }
             
-            // If they have 0 events but we can still see their profile, likely private
-            hasPrivate
+            val responseText = userResponse.body<String>()
+            
+            // Parse with ignoreUnknownKeys to handle extra fields
+            val json = Json { ignoreUnknownKeys = true }
+            val user = json.decodeFromString<GitHubUser>(responseText)
+            
+            println("GitHubApiClient: User $username - followers=${user.followers}, following=${user.following}, isPrivate=${user.isPrivate}, userViewType=${user.userViewType}")
+            
+            // Check if user has disabled following by checking if both followers and following are 0
+            // and they have public repos (indicating they're an active user but with hidden social activity)
+            val hasActivity = user.publicRepos > 0 || user.publicGists > 0
+            val hasNoSocialActivity = user.followers == 0 && user.following == 0
+            
+            // If they have code activity but no social activity, they likely disabled following/followers
+            if (hasActivity && hasNoSocialActivity) {
+                println("GitHubApiClient: User $username likely disabled following (has repos but 0 followers/following)")
+                return true
+            }
+            
+            user.isPrivate
         } catch (e: Exception) {
             println("GitHubApiClient: Error checking $username: ${e.message}")
             false

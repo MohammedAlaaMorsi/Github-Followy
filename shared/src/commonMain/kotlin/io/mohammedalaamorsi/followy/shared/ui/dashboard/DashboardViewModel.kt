@@ -13,7 +13,8 @@ sealed class DashboardState {
     data object Loading : DashboardState()
     data class Success(
         val followersNotFollowedBack: List<GitHubUser>,
-        val followingNotFollowingBack: List<GitHubUser>
+        val followingNotFollowingBack: List<GitHubUser>,
+        val allFollowing: List<GitHubUser>
     ) : DashboardState()
     data class Error(val message: String) : DashboardState()
 }
@@ -40,27 +41,35 @@ class DashboardViewModel(
     }
     
     fun loadDashboard(username: String) {
+        println("DashboardViewModel: loadDashboard called for username: $username")
         viewModelScope.launch {
             _dashboardState.value = DashboardState.Loading
             
             repository.analyzeFollowRelationships(username).fold(
                 onSuccess = { (followersNotFollowedBack, followingNotFollowingBack) ->
-                    // Check which users have private activity BEFORE updating UI
-                    println("DashboardViewModel: Checking ${followersNotFollowedBack.size} users for private activity")
+                    // Check which users have private/restricted activity BEFORE updating UI
                     val restricted = mutableSetOf<String>()
                     followersNotFollowedBack.forEach { user ->
                         if (repository.hasPrivateActivity(user.login)) {
-                            println("DashboardViewModel: User ${user.login} has private activity")
                             restricted.add(user.login)
                         }
                     }
-                    println("DashboardViewModel: Found ${restricted.size} restricted users: $restricted")
                     _restrictedUsers.value = restricted
                     
-                    // Now update the UI state after restrictions are set
-                    _dashboardState.value = DashboardState.Success(
-                        followersNotFollowedBack = followersNotFollowedBack,
-                        followingNotFollowingBack = followingNotFollowingBack
+                    // Get all following users for the new tab
+                    repository.getAllFollowing(username).fold(
+                        onSuccess = { allFollowing ->
+                            _dashboardState.value = DashboardState.Success(
+                                followersNotFollowedBack = followersNotFollowedBack,
+                                followingNotFollowingBack = followingNotFollowingBack,
+                                allFollowing = allFollowing
+                            )
+                        },
+                        onFailure = { error ->
+                            _dashboardState.value = DashboardState.Error(
+                                "Failed to load following list: ${error.message}"
+                            )
+                        }
                     )
                 },
                 onFailure = { error ->
@@ -74,7 +83,7 @@ class DashboardViewModel(
     
     fun followUser(username: String, onComplete: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            _isFollowingUser.value = _isFollowingUser.value + (username to true)
+            _isFollowingUser.value += (username to true)
             
             repository.followUser(username).fold(
                 onSuccess = { success ->
@@ -90,15 +99,13 @@ class DashboardViewModel(
                             )
                         }
                     }
-                    _isFollowingUser.value = _isFollowingUser.value - username
+                    _isFollowingUser.value -= username
                     onComplete(success)
                 },
                 onFailure = { error ->
                     _isFollowingUser.value = _isFollowingUser.value - username
-                    // Track users who have disabled following (session-based, cleared on restart)
-                    if (error.message?.contains("disabled following") == true) {
-                        _restrictedUsers.value = _restrictedUsers.value + username
-                    }
+                    // Mark user as restricted on any follow failure (blocked, deleted, disabled following, etc.)
+                    _restrictedUsers.value = _restrictedUsers.value + username
                     _errorMessage.value = error.message ?: "Failed to follow user"
                     onComplete(false)
                 }
@@ -107,7 +114,7 @@ class DashboardViewModel(
     }
     fun unfollowUser(username: String, onComplete: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            _isFollowingUser.value = _isFollowingUser.value + (username to true)
+            _isFollowingUser.value += (username to true)
             
             repository.unfollowUser(username).fold(
                 onSuccess = { success ->
@@ -123,11 +130,11 @@ class DashboardViewModel(
                             )
                         }
                     }
-                    _isFollowingUser.value = _isFollowingUser.value - username
+                    _isFollowingUser.value -= username
                     onComplete(success)
                 },
                 onFailure = { error ->
-                    _isFollowingUser.value = _isFollowingUser.value - username
+                    _isFollowingUser.value -= username
                     _errorMessage.value = error.message ?: "Failed to unfollow user"
                     onComplete(false)
                 }

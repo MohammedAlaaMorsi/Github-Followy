@@ -22,5 +22,11 @@ data class GitHubUser(
     @SerialName("following")
     val following: Int = 0,
     @SerialName("user_view_type")
-    val userViewType: String? = null
+    val userViewType: String? = null,
+    @SerialName("private")
+    val isPrivate: Boolean = false,
+    @SerialName("public_repos")
+    val publicRepos: Int = 0,
+    @SerialName("public_gists")
+    val publicGists: Int = 0
 )

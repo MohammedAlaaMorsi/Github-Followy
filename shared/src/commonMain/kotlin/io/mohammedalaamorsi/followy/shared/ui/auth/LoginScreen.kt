@@ -1,13 +1,19 @@
 package io.mohammedalaamorsi.followy.shared.ui.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.mohammedalaamorsi.followy.shared.data.models.AuthState
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
@@ -20,8 +26,6 @@ fun LoginScreen(
     onLoginSuccess: (String, String) -> Unit
 ) {
     val authState by viewModel.authState.collectAsState()
-    var tokenInput by remember { mutableStateOf("") }
-    var showTokenInput by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(authState) {
@@ -32,146 +36,166 @@ fun LoginScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.surface
+                    ),
+                    startY = 0f,
+                    endY = Float.POSITIVE_INFINITY
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier
-                .padding(16.dp)
-                .widthIn(max = 400.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                .padding(24.dp)
+                .widthIn(max = 400.dp)
+                .clip(RoundedCornerShape(24.dp)),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 12.dp,
+                pressedElevation = 8.dp
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+            )
         ) {
             Column(
                 modifier = Modifier
-                    .padding(24.dp)
+                    .padding(32.dp)
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
+                // Logo and Title
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            RoundedCornerShape(20.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "GH",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+                
                 Text(
                     text = "GitHub Followy",
-                    style = MaterialTheme.typography.headlineLarge
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    ),
+                    textAlign = TextAlign.Center
                 )
 
                 Text(
-                    text = "Track your GitHub followers",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Track your GitHub followers\nand following relationships",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2f
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Main content based on state
-                if (!showTokenInput) {
-                    // Welcome message
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🔐 Login with GitHub",
-                                style = MaterialTheme.typography.titleMedium
+                // Login Button
+                Button(
+                    onClick = { 
+                        if (oauthHandler?.isOAuthSupported() == true) {
+                            // Start OAuth flow
+                            oauthHandler.startOAuthFlow(
+                                clientId = GitHubOAuthConfig.clientId,
+                                redirectUri = GitHubOAuthConfig.redirectUri,
+                                scopes = GitHubOAuthConfig.SCOPES,
+                                onSuccess = { code ->
+                                    viewModel.exchangeOAuthCode(
+                                        code = code,
+                                        clientId = GitHubOAuthConfig.clientId,
+                                        clientSecret = GitHubOAuthConfig.clientSecret,
+                                        redirectUri = GitHubOAuthConfig.redirectUri
+                                    )
+                                },
+                                onError = { error ->
+                                    errorMessage = error
+                                }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Click below to securely authenticate with your GitHub account. You'll be redirected to GitHub to authorize access.",
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                        } else {
+                            errorMessage = "OAuth not supported on this platform"
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = { 
-                            if (oauthHandler?.isOAuthSupported() == true) {
-                                // Start OAuth flow
-                                oauthHandler.startOAuthFlow(
-                                    clientId = GitHubOAuthConfig.clientId,
-                                    redirectUri = GitHubOAuthConfig.redirectUri,
-                                    scopes = GitHubOAuthConfig.SCOPES,
-                                    onSuccess = { code ->
-                                        viewModel.exchangeOAuthCode(
-                                            code = code,
-                                            clientId = GitHubOAuthConfig.clientId,
-                                            clientSecret = GitHubOAuthConfig.clientSecret,
-                                            redirectUri = GitHubOAuthConfig.redirectUri
-                                        )
-                                    },
-                                    onError = { error ->
-                                        errorMessage = error
-                                    }
-                                )
-                            } else {
-                                // Fallback to token input
-                                showTokenInput = true
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = authState !is AuthState.Loading
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Key,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    enabled = authState !is AuthState.Loading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    if (authState is AuthState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 3.dp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "Login with GitHub",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            )
                         )
                     }
-                    
-                    TextButton(
-                        onClick = { showTokenInput = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Use Personal Access Token instead")
-                    }
-                } else {
-                    // Token input
-                    OutlinedTextField(
-                        value = tokenInput,
-                        onValueChange = { tokenInput = it },
-                        label = { Text("GitHub Token") },
-                        placeholder = { Text("ghp_xxxxxxxxxxxx") },
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        enabled = authState !is AuthState.Loading,
-                        supportingText = {
-                            Text(
-                                text = "Your token is encrypted and stored securely",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    )
+                }
 
-                    Button(
-                        onClick = { viewModel.authenticateWithToken(tokenInput) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = tokenInput.isNotBlank() && authState !is AuthState.Loading
+                // Security Info Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (authState is AuthState.Loading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                        Text(
+                            text = "🔒 Secure Authentication",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text("Login")
-                    }
-                    
-                    TextButton(
-                        onClick = { showTokenInput = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Back")
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "We use GitHub OAuth for secure login. Your data is never stored on our servers.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
 
@@ -187,7 +211,8 @@ fun LoginScreen(
                             text = (authState as AuthState.Error).message,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp)
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -200,22 +225,25 @@ fun LoginScreen(
                             containerColor = MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
                                 text = error,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center
                             )
-                            TextButton(onClick = { errorMessage = null }) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = { errorMessage = null },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text("Dismiss")
                             }
                         }
                     }
-                }
-
-                // Loading indicator
-                if (authState is AuthState.Loading && !showTokenInput) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
         }

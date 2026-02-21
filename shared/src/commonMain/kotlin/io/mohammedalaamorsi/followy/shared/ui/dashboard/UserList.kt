@@ -25,6 +25,7 @@ fun UserList(
     onUserClick: (String, Boolean) -> Unit = { _, _ -> },
     onRefresh: () -> Unit = {}
 ) {
+    println("UserList: Rendering with users=${users.map { it.login }}, restrictedUsers=$restrictedUsers")
     var isRefreshing by remember { mutableStateOf(false) }
     
     PullToRefreshBox(
@@ -61,6 +62,7 @@ fun UserList(
             ) {
                 items(users, key = { it.id }) { user ->
                     val isRestricted = restrictedUsers.contains(user.login)
+                    println("UserList: User ${user.login}, isRestricted=$isRestricted, restrictedUsers=$restrictedUsers")
                     UserCard(
                         user = user,
                         actionText = actionText,

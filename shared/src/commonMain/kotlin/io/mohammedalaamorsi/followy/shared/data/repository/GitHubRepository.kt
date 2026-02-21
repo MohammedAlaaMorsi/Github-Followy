@@ -62,4 +62,8 @@ class GitHubRepository(private val apiClient: GitHubApiClient) {
     suspend fun hasPrivateActivity(username: String): Boolean {
         return apiClient.hasPrivateActivity(username)
     }
+    
+    suspend fun getAllFollowing(username: String): Result<List<GitHubUser>> {
+        return apiClient.getAllFollowing(username)
+    }
 }

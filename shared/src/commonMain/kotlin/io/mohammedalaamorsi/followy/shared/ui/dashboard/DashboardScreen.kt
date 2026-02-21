@@ -109,14 +109,21 @@ fun DashboardScreen(
                                 selected = selectedTab == 0,
                                 onClick = { selectedTab = 0 },
                                 text = { 
-                                    Text("Follow Back (${state.followersNotFollowedBack.size})") 
+                                    Text("Follow Back\n (${state.followersNotFollowedBack.size})")
                                 }
                             )
                             Tab(
                                 selected = selectedTab == 1,
                                 onClick = { selectedTab = 1 },
                                 text = { 
-                                    Text("Not Following (${state.followingNotFollowingBack.size})") 
+                                    Text("Not Following\n (${state.followingNotFollowingBack.size})")
+                                }
+                            )
+                            Tab(
+                                selected = selectedTab == 2,
+                                onClick = { selectedTab = 2 },
+                                text = { 
+                                    Text("Following\n (${state.allFollowing.size})")
                                 }
                             )
                         }
@@ -142,6 +149,23 @@ fun DashboardScreen(
                                 )
                                 1 -> UserList(
                                     users = state.followingNotFollowingBack,
+                                    actionText = "Unfollow",
+                                    onAction = { user ->
+                                        viewModel.unfollowUser(user.login)
+                                    },
+                                    isProcessing = isFollowingUser,
+                                    restrictedUsers = restrictedUsers,
+                                    onUserClick = { username, isRestricted ->
+                                        onUserClick(username, isRestricted, selectedTab)
+                                    },
+                                    onRefresh = {
+                                        coroutineScope.launch {
+                                            viewModel.loadDashboard(username)
+                                        }
+                                    }
+                                )
+                                2 -> UserList(
+                                    users = state.allFollowing,
                                     actionText = "Unfollow",
                                     onAction = { user ->
                                         viewModel.unfollowUser(user.login)
