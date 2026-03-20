@@ -1,15 +1,16 @@
 *.iml
 .gradle
-/local.properties
-/.idea/
+local.properties
+.idea/
 .DS_Store
-/build
-/captures
+build/
+captures/
 .externalNativeBuild
 .cxx
-local.properties
 .kotlin/
 .fleet/
+node_modules/
+.npm/
 
 # OAuth credentials - DO NOT COMMIT
 oauth.properties

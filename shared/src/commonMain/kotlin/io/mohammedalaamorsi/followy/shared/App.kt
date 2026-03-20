@@ -19,10 +19,14 @@ import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+import io.mohammedalaamorsi.followy.shared.ui.profile.ProfileScreen
+import io.mohammedalaamorsi.followy.shared.ui.profile.ProfileViewModel
+
 @Composable
 fun App() {
     val oauthHandler: GitHubOAuthHandler? = koinInject()
     val authViewModel: AuthViewModel = koinInject()
+    var selectedUser by remember { mutableStateOf<Triple<String, Boolean, Int>?>(null) }
     
     // Check for existing token on app start
     LaunchedEffect(Unit) {
@@ -69,10 +73,25 @@ fun App() {
         
         is AuthState.Success -> {
             currentUser = currentState.user.login
-            DashboardApp(
-                username = currentState.user.login,
-                onLogout = { authViewModel.logout() }
-            )
+            val userToView = selectedUser
+            if (userToView != null) {
+                val profileViewModel: ProfileViewModel = koinInject()
+                ProfileScreen(
+                    viewModel = profileViewModel,
+                    username = userToView.first,
+                    currentUsername = currentState.user.login,
+                    isRestricted = userToView.second,
+                    onNavigateBack = { selectedUser = null }
+                )
+            } else {
+                DashboardApp(
+                    username = currentState.user.login,
+                    onLogout = { authViewModel.logout() },
+                    onUserClick = { login, restricted, tab ->
+                        selectedUser = Triple(login, restricted, tab)
+                    }
+                )
+            }
         }
         
         is AuthState.Error -> {
@@ -91,12 +110,14 @@ fun App() {
 fun DashboardApp(
     username: String,
     onLogout: () -> Unit,
+    onUserClick: (String, Boolean, Int) -> Unit = { _, _, _ -> },
     dashboardViewModel: DashboardViewModel = koinInject()
 ) {
     DashboardScreen(
         viewModel = dashboardViewModel,
         username = username,
         onLogout = onLogout,
-        onSettingsClick = { /* TODO: Implement settings */ }
+        onSettingsClick = { /* TODO: Implement settings */ },
+        onUserClick = onUserClick
     )
 }

@@ -83,6 +83,7 @@ kotlin {
             implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
             implementation("org.jetbrains.androidx.lifecycle:lifecycle-runtime:2.8.2")
             implementation(libs.coil.compose)
+            implementation(libs.coil.ktor)
             // implementation(libs.androidx.datastore.preferences)
             // implementation(libs.androidx.datastore.preferences.core)
         }

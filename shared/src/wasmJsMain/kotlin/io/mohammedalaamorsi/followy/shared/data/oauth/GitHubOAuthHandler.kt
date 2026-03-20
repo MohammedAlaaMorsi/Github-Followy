@@ -42,9 +42,12 @@ actual class GitHubOAuthHandler actual constructor() {
      */
     actual fun checkForCallback(): String? {
         val params = window.location.search
+        println("GitHubOAuthHandler: Checking for callback in URL. Params: $params")
         
         if (params.contains("code=")) {
-            return params.substringAfter("code=").substringBefore("&")
+            val code = params.substringAfter("code=").substringBefore("&")
+            println("GitHubOAuthHandler: Found code: $code")
+            return code
         }
         
         return null

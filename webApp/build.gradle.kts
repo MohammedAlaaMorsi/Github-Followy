@@ -38,6 +38,8 @@ kotlin {
                 implementation(compose.material3)
                 implementation(libs.koin.core)
                 implementation(libs.koin.compose)
+                implementation(libs.coil.compose)
+                implementation(libs.coil.ktor)
             }
         }
     }

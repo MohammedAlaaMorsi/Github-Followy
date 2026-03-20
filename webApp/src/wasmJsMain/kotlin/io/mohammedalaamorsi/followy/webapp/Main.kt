@@ -12,6 +12,9 @@ import org.koin.core.context.startKoin
 
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
 import kotlinx.browser.window
+import coil3.ImageLoader
+import coil3.compose.setSingletonImageLoaderFactory
+import coil3.network.ktor3.KtorNetworkFetcherFactory
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -27,6 +30,14 @@ fun main() {
     AuthTokenStorage.initialize(secureStorage)
 
     ComposeViewport(document.body!!) {
+        // Initialize Coil for web image loading within @Composable context
+        setSingletonImageLoaderFactory { context ->
+            ImageLoader.Builder(context)
+                .components {
+                    add(KtorNetworkFetcherFactory())
+                }
+                .build()
+        }
         App()
     }
 }
