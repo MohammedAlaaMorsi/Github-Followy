@@ -1,14 +1,8 @@
 package io.mohammedalaamorsi.followy.shared.ui.profile
 
-import androidx.lifecycle.viewModelScope
-import io.mohammedalaamorsi.followy.shared.data.models.GitHubUser
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
 import io.mohammedalaamorsi.followy.shared.domain.usecase.*
 import io.mohammedalaamorsi.followy.shared.ui.base.BaseMviViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 class ProfileViewModel(
     private val repository: GitHubRepository,
@@ -74,6 +68,9 @@ class ProfileViewModel(
                         isProcessing = false,
                         isFollowing = !currentState.isFollowing
                     ))
+                    setEffect(ProfileEffect.ShowSnackbar("Updated follow status"))
+                } else {
+                    setState(uiState.value.copy(isProcessing = false))
                 }
             },
             onFailure = { error ->
@@ -87,38 +84,4 @@ class ProfileViewModel(
             }
         )
     }
-
-    // Legacy support BRIDGE
-    val profileState = uiState.map { state ->
-        when {
-            state.isLoading -> ProfileState.Loading
-            state.error != null -> ProfileState.Error(state.error)
-            state.user != null -> ProfileState.Success(state.user, state.isFollowing, state.isRestricted)
-            else -> ProfileState.Loading
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProfileState.Loading)
-
-    val isProcessing = uiState.map { it.isProcessing }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    val errorMessage = uiState.map { it.error }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    // Bridge functions for legacy UI
-    fun loadProfileLegacy(username: String, currentUsername: String, isRestricted: Boolean = false) = 
-        sendIntent(ProfileIntent.LoadProfile(username, currentUsername, isRestricted))
-    fun toggleFollowLegacy(username: String, currentUsername: String, onComplete: (Boolean) -> Unit = {}) = 
-        sendIntent(ProfileIntent.ToggleFollow(username, currentUsername))
-    fun clearErrorLegacy() = sendIntent(ProfileIntent.ClearError)
-}
-
-// Support for old ProfileState during refactor
-sealed class ProfileState {
-    data object Loading : ProfileState()
-    data class Success(
-        val user: io.mohammedalaamorsi.followy.shared.data.models.GitHubUser, 
-        val isFollowing: Boolean, 
-        val isRestricted: Boolean = false
-    ) : ProfileState()
-    data class Error(val message: String) : ProfileState()
 }

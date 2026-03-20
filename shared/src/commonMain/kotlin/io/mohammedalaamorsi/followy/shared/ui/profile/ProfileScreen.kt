@@ -28,22 +28,24 @@ fun ProfileScreen(
     onNavigateBack: () -> Unit,
     onFollowToggle: (String, Boolean) -> Unit = { _, _ -> }
 ) {
-    val profileState by viewModel.profileState.collectAsState()
-    val isProcessing by viewModel.isProcessing.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     
+    // Initial Load
     LaunchedEffect(username) {
-        viewModel.loadProfileLegacy(username, currentUsername, isRestricted)
+        viewModel.sendIntent(ProfileIntent.LoadProfile(username, currentUsername, isRestricted))
     }
     
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(
-                message = it,
-                duration = SnackbarDuration.Short
-            )
-            viewModel.clearErrorLegacy()
+    // Handle Effects
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is ProfileEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                    onFollowToggle(username, state.isFollowing)
+                }
+                is ProfileEffect.NavigateBack -> onNavigateBack()
+            }
         }
     }
     
@@ -60,139 +62,68 @@ fun ProfileScreen(
             )
         }
     ) { padding ->
-        when (val state = profileState) {
-            is ProfileState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+        if (state.isLoading) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            
-            is ProfileState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = state.message,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Button(onClick = { viewModel.loadProfileLegacy(username, currentUsername) }) {
-                            Text("Retry")
-                        }
+        } else if (state.error != null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = state.error!!, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = { viewModel.sendIntent(ProfileIntent.LoadProfile(username, currentUsername)) }) {
+                        Text("Retry")
                     }
                 }
             }
-            
-            is ProfileState.Success -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Avatar
-                    AsyncImage(
-                        model = state.user.avatarUrl,
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    
-                    // Username
-                    Text(
-                        text = "@${state.user.login}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    // Name
-                    state.user.name?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+        } else if (state.user != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                AsyncImage(
+                    model = state.user!!.avatarUrl,
+                    contentDescription = "Avatar",
+                    modifier = Modifier.size(120.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                
+                Text(text = "@${state.user!!.login}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                
+                state.user!!.name?.let { Text(text = it, style = MaterialTheme.typography.titleLarge) }
+                
+                state.user!!.bio?.let {
+                    Text(text = it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 16.dp))
+                }
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    StatItem("Followers", state.user!!.followers ?: 0)
+                    StatItem("Following", state.user!!.following ?: 0)
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                if (state.isRestricted) {
+                    Button(onClick = { }, enabled = false, modifier = Modifier.fillMaxWidth(0.8f)) {
+                        Text("Unavailable")
                     }
-                    
-                    // Bio
-                    state.user.bio?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                    
-                    // Stats
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                    Text(text = "This user has disabled following", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Button(
+                        onClick = { viewModel.sendIntent(ProfileIntent.ToggleFollow(username, currentUsername)) },
+                        enabled = !state.isProcessing,
+                        modifier = Modifier.fillMaxWidth(0.8f)
                     ) {
-                        StatItem("Followers", state.user.followers ?: 0)
-                        StatItem("Following", state.user.following ?: 0)
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Follow/Unfollow Button
-                    if (state.isRestricted) {
-                        // Show disabled button with message
-                        Button(
-                            onClick = { },
-                            enabled = false,
-                            modifier = Modifier.fillMaxWidth(0.8f)
-                        ) {
-                            Text("Unavailable")
-                        }
-                        Text(
-                            text = "This user has disabled following",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    } else {
-                        Button(
-                            onClick = {
-                                // Toggle in profile
-                                viewModel.toggleFollowLegacy(username, currentUsername) { success ->
-                                    if (success) {
-                                        // Update dashboard list
-                                        val currentState = viewModel.profileState.value
-                                        if (currentState is ProfileState.Success) {
-                                            onFollowToggle(username, !currentState.isFollowing)
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = !isProcessing,
-                            modifier = Modifier.fillMaxWidth(0.8f)
-                        ) {
-                            if (isProcessing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    if (state.isFollowing) Icons.Default.PersonRemove else Icons.Default.PersonAdd,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (state.isFollowing) "Unfollow" else "Follow")
-                            }
+                        if (state.isProcessing) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
+                        } else {
+                            Icon(if (state.isFollowing) Icons.Default.PersonRemove else Icons.Default.PersonAdd, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (state.isFollowing) "Unfollow" else "Follow")
                         }
                     }
                 }
@@ -204,15 +135,7 @@ fun ProfileScreen(
 @Composable
 private fun StatItem(label: String, count: Int) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(text = count.toString(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -4,10 +4,6 @@ import androidx.lifecycle.viewModelScope
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
 import io.mohammedalaamorsi.followy.shared.domain.usecase.*
 import io.mohammedalaamorsi.followy.shared.ui.base.BaseMviViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 class DashboardViewModel(
     private val repository: GitHubRepository,
@@ -30,7 +26,6 @@ class DashboardViewModel(
         
         getDashboardDataUseCase(username).fold(
             onSuccess = { data ->
-                // Basic restricted check (can be refined to its own UseCase)
                 val restricted = mutableSetOf<String>()
                 data.followersNotFollowedBack.forEach { user ->
                     if (repository.hasPrivateActivity(user.login)) {
@@ -61,9 +56,9 @@ class DashboardViewModel(
         followUserUseCase(login).fold(
             onSuccess = { success ->
                 if (success) {
-                    // Update state to remove followed user from list
                     val updatedList = uiState.value.followersNotFollowedBack.filter { it.login != login }
                     setState(uiState.value.copy(followersNotFollowedBack = updatedList))
+                    setEffect(DashboardEffect.ShowSnackbar("Followed $login"))
                 }
                 updateActionLoading(login, false)
             },
@@ -83,8 +78,13 @@ class DashboardViewModel(
         unfollowUserUseCase(login).fold(
             onSuccess = { success ->
                 if (success) {
-                    val updatedList = uiState.value.followingNotFollowingBack.filter { it.login != login }
-                    setState(uiState.value.copy(followingNotFollowingBack = updatedList))
+                    val updatedFollowing = uiState.value.followingNotFollowingBack.filter { it.login != login }
+                    val updatedAll = uiState.value.allFollowing.filter { it.login != login }
+                    setState(uiState.value.copy(
+                        followingNotFollowingBack = updatedFollowing,
+                        allFollowing = updatedAll
+                    ))
+                    setEffect(DashboardEffect.ShowSnackbar("Unfollowed $login"))
                 }
                 updateActionLoading(login, false)
             },
@@ -100,43 +100,4 @@ class DashboardViewModel(
         if (isLoading) updatedMap[login] = true else updatedMap.remove(login)
         setState(uiState.value.copy(isFollowingInProgress = updatedMap))
     }
-
-    // Legacy support BRIDGE (for DashboardScreen.kt refactor)
-    val dashboardState = uiState.map { state ->
-        when {
-            state.isLoading -> DashboardState.Loading
-            state.error != null -> DashboardState.Error(state.error)
-            else -> DashboardState.Success(
-                followersNotFollowedBack = state.followersNotFollowedBack,
-                followingNotFollowingBack = state.followingNotFollowingBack,
-                allFollowing = state.allFollowing
-            )
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardState.Loading)
-
-    val isFollowingUser = uiState.map { it.isFollowingInProgress }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-    val errorMessage = uiState.map { it.error }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val restrictedUsers = uiState.map { it.restrictedUsers }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-
-    // Bridge functions for legacy UI
-    fun loadDashboardLegacy(username: String) = sendIntent(DashboardIntent.LoadDashboard(username))
-    fun followUserLegacy(username: String) = sendIntent(DashboardIntent.FollowUser(username))
-    fun unfollowUserLegacy(username: String) = sendIntent(DashboardIntent.UnfollowUser(username))
-    fun clearErrorLegacy() = sendIntent(DashboardIntent.ClearError)
-}
-
-// Support for old DashboardState during refactor
-sealed class DashboardState {
-    data object Loading : DashboardState()
-    data class Success(
-        val followersNotFollowedBack: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>,
-        val followingNotFollowingBack: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>,
-        val allFollowing: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>
-    ) : DashboardState()
-    data class Error(val message: String) : DashboardState()
 }

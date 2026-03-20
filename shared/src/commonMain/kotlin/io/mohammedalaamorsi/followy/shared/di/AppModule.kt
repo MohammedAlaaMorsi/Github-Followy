@@ -30,7 +30,6 @@ val appModule = module {
             install(Logging) {
                 logger = object : Logger {
                     override fun log(message: String) {
-                        // Filter out sensitive headers
                         val sanitized = message
                             .replace(Regex("Authorization: Bearer [^\\s]+"), "Authorization: Bearer ***")
                             .replace(Regex("token [a-zA-Z0-9_]+"), "token ***")
@@ -51,6 +50,8 @@ val appModule = module {
     single { GetDashboardDataUseCase(get()) }
     single { FollowUserUseCase(get()) }
     single { UnfollowUserUseCase(get()) }
+    single { ExchangeOAuthCodeUseCase(get(), get()) }
+    single { LogoutUseCase(get()) }
     
     // ViewModels (MVI)
     factory { AuthViewModel(get(), get(), get()) }

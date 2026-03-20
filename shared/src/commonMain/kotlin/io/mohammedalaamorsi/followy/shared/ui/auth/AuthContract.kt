@@ -20,6 +20,7 @@ sealed class AuthIntent : UiIntent {
 data class AuthUiState(
     val isLoading: Boolean = false,
     val loginError: String? = null,
+    val isUserLoggedIn: Boolean = false,
     val isInitializing: Boolean = true,
     val user: GitHubUser? = null,
     val token: String? = null

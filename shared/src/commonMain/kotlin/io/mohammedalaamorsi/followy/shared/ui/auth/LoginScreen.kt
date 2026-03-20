@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.mohammedalaamorsi.followy.shared.data.models.AuthState
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubAuthConfigProvider
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthHandler
@@ -28,15 +27,22 @@ fun LoginScreen(
     configProvider: GitHubAuthConfigProvider = koinInject(),
     onLoginSuccess: (String, String) -> Unit
 ) {
-    val authState by viewModel.authStateFlow.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var manualCode by remember { mutableStateOf("") }
     var showManualEntry by remember { mutableStateOf(false) }
     
-    LaunchedEffect(authState) {
-        if (authState is AuthState.Success) {
-            val successState = authState as AuthState.Success
-            onLoginSuccess(successState.user.login, successState.token)
+    // Handle Navigation Side Effects
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is AuthEffect.NavigateToDashboard -> {
+                    onLoginSuccess(effect.user.login, state.token ?: "")
+                }
+                is AuthEffect.ShowError -> {
+                    errorMessage = effect.message
+                }
+            }
         }
     }
 
@@ -44,19 +50,16 @@ fun LoginScreen(
         // Automatically check for OAuth callback code (especially for Web)
         val code = oauthHandler?.checkForCallback()
         if (code != null) {
-            println("Launcher: Found OAuth callback code in URL: $code")
-            viewModel.exchangeOAuthCode(
+            viewModel.sendIntent(AuthIntent.ExchangeOAuthCode(
                 code = code,
                 clientId = configProvider.clientId,
                 clientSecret = configProvider.clientSecret,
                 redirectUri = configProvider.redirectUri
-            )
+            ))
         }
         
         // Listen for async callbacks (Deep Links on Android, results from Desktop server)
         oauthHandler?.callbackFlow?.collect { callbackData ->
-            println("Launcher: Received OAuth callback via Flow: $callbackData")
-            // Robust extraction if it's a full URL
             var extractedCode = callbackData
             if (extractedCode.contains("code=")) {
                 extractedCode = extractedCode.substringAfter("code=")
@@ -65,12 +68,12 @@ fun LoginScreen(
                 extractedCode = extractedCode.substringBefore("&")
             }
             
-            viewModel.exchangeOAuthCode(
+            viewModel.sendIntent(AuthIntent.ExchangeOAuthCode(
                 code = extractedCode,
                 clientId = configProvider.clientId,
                 clientSecret = configProvider.clientSecret,
                 redirectUri = configProvider.redirectUri
-            )
+            ))
         }
     }
 
@@ -83,9 +86,7 @@ fun LoginScreen(
                         MaterialTheme.colorScheme.primary,
                         MaterialTheme.colorScheme.primaryContainer,
                         MaterialTheme.colorScheme.surface
-                    ),
-                    startY = 0f,
-                    endY = Float.POSITIVE_INFINITY
+                    )
                 )
             ),
         contentAlignment = Alignment.Center
@@ -95,10 +96,7 @@ fun LoginScreen(
                 .padding(24.dp)
                 .widthIn(max = 400.dp)
                 .clip(RoundedCornerShape(24.dp)),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 12.dp,
-                pressedElevation = 8.dp
-            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
             )
@@ -142,28 +140,24 @@ fun LoginScreen(
                     text = "Track your GitHub followers\nand following relationships",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.2f
+                    textAlign = TextAlign.Center
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 // Login Button
                 Button(
                     onClick = { 
                         if (oauthHandler?.isOAuthSupported() == true) {
-                            // Start OAuth flow
                             oauthHandler.startOAuthFlow(
                                 clientId = configProvider.clientId,
                                 redirectUri = configProvider.redirectUri,
                                 scopes = GitHubOAuthConfig.SCOPES,
                                 onSuccess = { code ->
-                                    viewModel.exchangeOAuthCode(
+                                    viewModel.sendIntent(AuthIntent.ExchangeOAuthCode(
                                         code = code,
                                         clientId = configProvider.clientId,
                                         clientSecret = configProvider.clientSecret,
                                         redirectUri = configProvider.redirectUri
-                                    )
+                                    ))
                                 },
                                 onError = { error ->
                                     errorMessage = error
@@ -175,41 +169,23 @@ fun LoginScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    enabled = authState !is AuthState.Loading,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp,
-                        pressedElevation = 8.dp
-                    )
+                        .height(56.dp),
+                    enabled = !state.isLoading,
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    if (authState is AuthState.Loading) {
+                    if (state.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 3.dp
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Icon(
-                            imageVector = Icons.Default.Code,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Icon(imageVector = Icons.Default.Code, contentDescription = null)
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Login with GitHub",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        )
+                        Text("Login with GitHub")
                     }
                 }
                 
-                // Manual Code Entry Fallback (Mostly for Desktop)
+                // Manual Entry
                 if (showManualEntry) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -220,122 +196,49 @@ fun LoginScreen(
                             onValueChange = { manualCode = it },
                             label = { Text("Enter Authorization Code") },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            singleLine = true
                         )
                         
                         Button(
                             onClick = {
                                 if (manualCode.isNotBlank()) {
-                                    // Robust code extraction
-                                    var extractedCode = manualCode.trim()
-                                    if (extractedCode.contains("code=")) {
-                                        extractedCode = extractedCode.substringAfter("code=")
-                                    }
-                                    if (extractedCode.contains("&")) {
-                                        extractedCode = extractedCode.substringBefore("&")
-                                    }
+                                    val extractedCode = manualCode.trim()
+                                        .substringAfter("code=")
+                                        .substringBefore("&")
                                     
-                                    println("Manual Login: Extracted code: $extractedCode")
-                                    viewModel.exchangeOAuthCode(
+                                    viewModel.sendIntent(AuthIntent.ExchangeOAuthCode(
                                         code = extractedCode,
                                         clientId = configProvider.clientId,
                                         clientSecret = configProvider.clientSecret,
                                         redirectUri = configProvider.redirectUri
-                                    )
+                                    ))
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = manualCode.isNotBlank() && authState !is AuthState.Loading,
-                            shape = RoundedCornerShape(12.dp)
+                            enabled = manualCode.isNotBlank() && !state.isLoading
                         ) {
                             Text("Complete Login")
                         }
                     }
                 }
 
-                TextButton(
-                    onClick = { showManualEntry = !showManualEntry }
-                ) {
-                    Text(
-                        text = if (showManualEntry) "Hide Manual Entry" else "Trouble logging in? Try Manual Entry",
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                TextButton(onClick = { showManualEntry = !showManualEntry }) {
+                    Text(if (showManualEntry) "Hide Manual Entry" else "Trouble logging in? Try Manual Entry")
                 }
 
-                // Security Info Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "🔒 Secure Authentication",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "We use GitHub OAuth for secure login. Your data is never stored on our servers.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-
-                // Error message
-                if (authState is AuthState.Error) {
+                // Error messages
+                val finalError = state.loginError ?: errorMessage
+                if (finalError != null) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
                         Text(
-                            text = (authState as AuthState.Error).message,
+                            text = finalError,
                             color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(12.dp),
                             textAlign = TextAlign.Center
                         )
-                    }
-                }
-                
-                // OAuth error message
-                errorMessage?.let { error ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = error,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            TextButton(
-                                onClick = { errorMessage = null },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Dismiss")
-                            }
-                        }
                     }
                 }
             }

@@ -2,13 +2,13 @@ package io.mohammedalaamorsi.followy.shared.ui.dashboard
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -20,33 +20,29 @@ fun DashboardScreen(
     onSettingsClick: () -> Unit,
     onUserClick: (String, Boolean, Int) -> Unit = { _, _, _ -> }
 ) {
-    val dashboardState by viewModel.dashboardState.collectAsState()
-    val isFollowingUser by viewModel.isFollowingUser.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val restrictedUsers by viewModel.restrictedUsers.collectAsState()
-    
+    val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by remember { mutableStateOf(initialTab) }
-    val coroutineScope = rememberCoroutineScope()
+    var showMenu by remember { mutableStateOf(false) }
     
-    // Show error message in snackbar
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(
-                message = it,
-                duration = SnackbarDuration.Long
-            )
-            viewModel.clearErrorLegacy()
+    // Handle Side Effects
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is DashboardEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+                is DashboardEffect.NavigateToProfile -> {
+                    onUserClick(effect.login, effect.isRestricted, selectedTab)
+                }
+            }
         }
     }
     
-    // Load dashboard only once when first created, not on every recomposition
+    // Initial Load
     LaunchedEffect(username) {
-        // Only load if we don't have data yet
-        if (dashboardState is DashboardState.Loading) {
-            coroutineScope.launch {
-                viewModel.loadDashboardLegacy(username)
-            }
+        if (state.followersNotFollowedBack.isEmpty() && state.followingNotFollowingBack.isEmpty()) {
+            viewModel.sendIntent(DashboardIntent.LoadDashboard(username))
         }
     }
     
@@ -60,130 +56,111 @@ fun DashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings"
-                        )
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("App Settings") },
+                                onClick = { 
+                                    showMenu = false
+                                    onSettingsClick()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                            )
+                            Divider()
+                            DropdownMenuItem(
+                                text = { Text("Logout") },
+                                onClick = { 
+                                    showMenu = false
+                                    onLogout()
+                                },
+                                leadingIcon = { 
+                                    Icon(
+                                        imageVector = Icons.Default.Logout,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             )
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            when (val state = dashboardState) {
-                is DashboardState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+            if (state.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-                
-                is DashboardState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Button(onClick = { viewModel.loadDashboardLegacy(username) }) {
-                                Text("Retry")
-                            }
+            } else if (state.error != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = state.error!!, color = MaterialTheme.colorScheme.error)
+                        Button(onClick = { viewModel.sendIntent(DashboardIntent.LoadDashboard(username)) }) {
+                            Text("Retry")
                         }
                     }
                 }
-                
-                is DashboardState.Success -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        TabRow(
-                            selectedTabIndex = selectedTab,
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            Tab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                text = { 
-                                    Text("Follow Back\n (${state.followersNotFollowedBack.size})")
-                                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TabRow(selectedTabIndex = selectedTab) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = { Text("Follow Back\n(${state.followersNotFollowedBack.size})") }
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = { Text("Not Following\n(${state.followingNotFollowingBack.size})") }
+                        )
+                        Tab(
+                            selected = selectedTab == 2,
+                            onClick = { selectedTab = 2 },
+                            text = { Text("Following\n(${state.allFollowing.size})") }
+                        )
+                    }
+                    
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when (selectedTab) {
+                            0 -> UserList(
+                                users = state.followersNotFollowedBack,
+                                actionText = "Follow",
+                                onAction = { user -> viewModel.sendIntent(DashboardIntent.FollowUser(user.login)) },
+                                isProcessing = state.isFollowingInProgress,
+                                restrictedUsers = state.restrictedUsers,
+                                onUserClick = { login, isRestricted -> onUserClick(login, isRestricted, 0) },
+                                onRefresh = { viewModel.sendIntent(DashboardIntent.LoadDashboard(username)) }
                             )
-                            Tab(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                text = { 
-                                    Text("Not Following\n (${state.followingNotFollowingBack.size})")
-                                }
+                            1 -> UserList(
+                                users = state.followingNotFollowingBack,
+                                actionText = "Unfollow",
+                                onAction = { user -> viewModel.sendIntent(DashboardIntent.UnfollowUser(user.login)) },
+                                isProcessing = state.isFollowingInProgress,
+                                restrictedUsers = state.restrictedUsers,
+                                onUserClick = { login, isRestricted -> onUserClick(login, isRestricted, 1) },
+                                onRefresh = { viewModel.sendIntent(DashboardIntent.LoadDashboard(username)) }
                             )
-                            Tab(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                text = { 
-                                    Text("Following\n (${state.allFollowing.size})")
-                                }
+                            2 -> UserList(
+                                users = state.allFollowing,
+                                actionText = "Unfollow",
+                                onAction = { user -> viewModel.sendIntent(DashboardIntent.UnfollowUser(user.login)) },
+                                isProcessing = state.isFollowingInProgress,
+                                restrictedUsers = state.restrictedUsers,
+                                onUserClick = { login, isRestricted -> onUserClick(login, isRestricted, 2) },
+                                onRefresh = { viewModel.sendIntent(DashboardIntent.LoadDashboard(username)) }
                             )
-                        }
-                        
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            when (selectedTab) {
-                                0 -> UserList(
-                                    users = state.followersNotFollowedBack,
-                                    actionText = "Follow",
-                                    onAction = { user ->
-                                        viewModel.followUserLegacy(user.login)
-                                    },
-                                    isProcessing = isFollowingUser,
-                                    restrictedUsers = restrictedUsers,
-                                    onUserClick = { username, isRestricted ->
-                                        onUserClick(username, isRestricted, selectedTab)
-                                    },
-                                    onRefresh = {
-                                        coroutineScope.launch {
-                                            viewModel.loadDashboardLegacy(username)
-                                        }
-                                    }
-                                )
-                                1 -> UserList(
-                                    users = state.followingNotFollowingBack,
-                                    actionText = "Unfollow",
-                                    onAction = { user ->
-                                        viewModel.unfollowUserLegacy(user.login)
-                                    },
-                                    isProcessing = isFollowingUser,
-                                    restrictedUsers = restrictedUsers,
-                                    onUserClick = { username, isRestricted ->
-                                        onUserClick(username, isRestricted, selectedTab)
-                                    },
-                                    onRefresh = {
-                                        coroutineScope.launch {
-                                            viewModel.loadDashboardLegacy(username)
-                                        }
-                                    }
-                                )
-                                2 -> UserList(
-                                    users = state.allFollowing,
-                                    actionText = "Unfollow",
-                                    onAction = { user ->
-                                        viewModel.unfollowUserLegacy(user.login)
-                                    },
-                                    isProcessing = isFollowingUser,
-                                    restrictedUsers = restrictedUsers,
-                                    onUserClick = { username, isRestricted ->
-                                        onUserClick(username, isRestricted, selectedTab)
-                                    },
-                                    onRefresh = {
-                                        coroutineScope.launch {
-                                            viewModel.loadDashboardLegacy(username)
-                                        }
-                                    }
-                                )
-                            }
                         }
                     }
                 }
