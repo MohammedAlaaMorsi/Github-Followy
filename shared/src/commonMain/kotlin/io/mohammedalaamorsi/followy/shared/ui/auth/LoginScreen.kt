@@ -16,13 +16,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.mohammedalaamorsi.followy.shared.data.models.AuthState
+import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubAuthConfigProvider
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthHandler
+import org.koin.compose.koinInject
 
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
     oauthHandler: GitHubOAuthHandler? = null,
+    configProvider: GitHubAuthConfigProvider = koinInject(),
     onLoginSuccess: (String, String) -> Unit
 ) {
     val authState by viewModel.authState.collectAsState()
@@ -34,6 +37,20 @@ fun LoginScreen(
         if (authState is AuthState.Success) {
             val successState = authState as AuthState.Success
             onLoginSuccess(successState.user.login, successState.token)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // Automatically check for OAuth callback code (especially for Web)
+        val code = oauthHandler?.checkForCallback()
+        if (code != null) {
+            println("Launcher: Found OAuth callback code in URL: $code")
+            viewModel.exchangeOAuthCode(
+                code = code,
+                clientId = configProvider.clientId,
+                clientSecret = configProvider.clientSecret,
+                redirectUri = configProvider.redirectUri
+            )
         }
     }
 
@@ -117,15 +134,15 @@ fun LoginScreen(
                         if (oauthHandler?.isOAuthSupported() == true) {
                             // Start OAuth flow
                             oauthHandler.startOAuthFlow(
-                                clientId = GitHubOAuthConfig.clientId,
-                                redirectUri = GitHubOAuthConfig.redirectUri,
+                                clientId = configProvider.clientId,
+                                redirectUri = configProvider.redirectUri,
                                 scopes = GitHubOAuthConfig.SCOPES,
                                 onSuccess = { code ->
                                     viewModel.exchangeOAuthCode(
                                         code = code,
-                                        clientId = GitHubOAuthConfig.clientId,
-                                        clientSecret = GitHubOAuthConfig.clientSecret,
-                                        redirectUri = GitHubOAuthConfig.redirectUri
+                                        clientId = configProvider.clientId,
+                                        clientSecret = configProvider.clientSecret,
+                                        redirectUri = configProvider.redirectUri
                                     )
                                 },
                                 onError = { error ->
@@ -202,9 +219,9 @@ fun LoginScreen(
                                     println("Manual Login: Extracted code: $extractedCode")
                                     viewModel.exchangeOAuthCode(
                                         code = extractedCode,
-                                        clientId = GitHubOAuthConfig.clientId,
-                                        clientSecret = GitHubOAuthConfig.clientSecret,
-                                        redirectUri = GitHubOAuthConfig.redirectUri
+                                        clientId = configProvider.clientId,
+                                        clientSecret = configProvider.clientSecret,
+                                        redirectUri = configProvider.redirectUri
                                     )
                                 }
                             },

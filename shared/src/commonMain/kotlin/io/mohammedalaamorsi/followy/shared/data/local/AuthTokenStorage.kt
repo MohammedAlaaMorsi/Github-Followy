@@ -2,7 +2,6 @@ package io.mohammedalaamorsi.followy.shared.data.local
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
 
 /**
  * Secure persistent storage for auth token using DataStore
@@ -35,10 +34,4 @@ object AuthTokenStorage {
         return secureStorage?.hasToken() ?: false
     }
     
-    // Blocking version for init checks
-    fun getTokenBlocking(): String? {
-        return runBlocking {
-            secureStorage?.getToken()
-        }
-    }
 }

@@ -33,33 +33,5 @@ actual class GitHubOAuthHandler {
     
     actual fun isOAuthSupported(): Boolean = true
     
-    private fun buildAuthUrl(clientId: String, redirectUri: String, scopes: String): String {
-        return "${GitHubOAuthConfig.AUTHORIZE_URL}?" +
-                "client_id=$clientId&" +
-                "redirect_uri=${redirectUri.encodeURLParameter()}&" +
-                "scope=${scopes.encodeURLParameter()}&" +
-                "state=${generateState()}"
-    }
-    
-    private fun generateState(): String {
-        return System.currentTimeMillis().toString()
-    }
-    
-    private fun String.encodeURLParameter(): String {
-        return this.replace(" ", "%20")
-            .replace(":", "%3A")
-            .replace("/", "%2F")
-    }
-    
-    /**
-     * Call this from your AppDelegate to handle the OAuth callback
-     */
-    fun handleCallback(url: String) {
-        val code = url.substringAfter("code=").substringBefore("&")
-        if (code.isNotEmpty() && !code.contains("http")) {
-            onSuccessCallback?.invoke(code)
-        } else {
-            onErrorCallback?.invoke("Invalid OAuth callback")
-        }
-    }
+    actual fun checkForCallback(): String? = null
 }

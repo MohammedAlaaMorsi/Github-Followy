@@ -1,0 +1,14 @@
+{
+  "name": "Github-Followy-webApp-test",
+  "version": "0.0.0-unspecified",
+  "main": "Github-Followy-webApp-test.mjs",
+  "devDependencies": {},
+  "dependencies": {
+    "@js-joda/core": "3.2.0",
+    "format-util": "^1.0.5",
+    "ws": "8.18.3"
+  },
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "bundledDependencies": []
+}

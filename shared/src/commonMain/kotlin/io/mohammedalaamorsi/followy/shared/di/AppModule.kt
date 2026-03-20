@@ -1,7 +1,5 @@
 package io.mohammedalaamorsi.followy.shared.di
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
@@ -44,8 +42,6 @@ val appModule = module {
             }
         }
     }
-    
-    single { SecureTokenStorage(getOrNull<DataStore<Preferences>>()) }
     
     singleOf(::GitHubApiClient)
     singleOf(::GitHubOAuthService)

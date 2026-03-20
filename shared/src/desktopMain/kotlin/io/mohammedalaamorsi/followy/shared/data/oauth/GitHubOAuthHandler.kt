@@ -55,6 +55,8 @@ actual class GitHubOAuthHandler {
         return Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)
     }
     
+    actual fun checkForCallback(): String? = null
+    
     private fun startLocalServer(onSuccess: (code: String) -> Unit, onError: (String) -> Unit) {
         // Close existing server if any
         serverSocket?.close()

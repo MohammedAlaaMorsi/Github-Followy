@@ -19,10 +19,13 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Android-specific secure token storage with hardware-backed encryption
  */
-actual class SecureTokenStorage actual constructor(
-    private val dataStore: DataStore<Preferences>?
-) {
+actual class SecureTokenStorage actual constructor() {
+    private var dataStore: DataStore<Preferences>? = null
     private var context: Context? = null
+    
+    fun setDataStore(dataStore: DataStore<Preferences>) {
+        this.dataStore = dataStore
+    }
     
     companion object {
         private val TOKEN_KEY = stringPreferencesKey("github_token")

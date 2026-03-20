@@ -36,6 +36,8 @@ actual class GitHubOAuthHandler(private val context: Context) {
     
     actual fun isOAuthSupported(): Boolean = true
     
+    actual fun checkForCallback(): String? = null
+    
     private fun buildAuthUrl(clientId: String, redirectUri: String, scopes: String): String {
         return "${GitHubOAuthConfig.AUTHORIZE_URL}?" +
                 "client_id=$clientId&" +

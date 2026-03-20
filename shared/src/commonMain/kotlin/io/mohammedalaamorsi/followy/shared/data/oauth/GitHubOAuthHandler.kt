@@ -3,7 +3,7 @@ package io.mohammedalaamorsi.followy.shared.data.oauth
 /**
  * Platform-specific OAuth handler
  */
-expect class GitHubOAuthHandler {
+expect class GitHubOAuthHandler() {
     /**
      * Initiate OAuth flow - opens browser/webview for authentication
      * Returns the authorization code via callback
@@ -20,4 +20,9 @@ expect class GitHubOAuthHandler {
      * Check if OAuth is supported on this platform
      */
     fun isOAuthSupported(): Boolean
+    
+    /**
+     * Check for any authorization code already present (e.g., in URL for web)
+     */
+    fun checkForCallback(): String?
 }

@@ -4,9 +4,9 @@ package io.mohammedalaamorsi.followy.shared.data.oauth
  * OAuth configuration for GitHub
  */
 object GitHubOAuthConfig {
-    // GitHub OAuth endpoints
-    const val AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
-    const val TOKEN_URL = "https://github.com/login/oauth/access_token"
+    // GitHub OAuth endpoints - can be overridden for Web/CORS proxy
+    var AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
+    var TOKEN_URL = "https://github.com/login/oauth/access_token"
     
     // Required scopes for the app
     const val SCOPES = "user,user:follow"
