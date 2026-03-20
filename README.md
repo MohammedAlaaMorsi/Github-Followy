@@ -72,15 +72,6 @@ The app follows **Clean Architecture** principles:
 - **Data Layer**: Ktor for networking, Ktor-Network-Coil for images.
 - **OAuth Provider**: Decoupled interface for providing credentials at runtime without hardcoding.
 
-### Technology Stack
-
-- **Kotlin Multiplatform (KMP)**
-- **Compose Multiplatform 1.7.3**
-- **Coil 3** - Async image loading with Ktor network fetcher
-- **Koin** - Dependency injection
-- **Ktor 3.0** - Networking and OAuth token exchange
-- **Webpack** - Dev server with CORS proxy configuration
-
 ## 🔒 Configuration (Web)
 
 For the Web version, secrets are loaded dynamically from the `index.html` to avoid including them in the compiled Wasm binary.
@@ -92,6 +83,28 @@ Update `webApp/src/wasmJsMain/resources/index.html`:
     window.clientSecret = "YOUR_CLIENT_SECRET";
 </script>
 ```
+
+## 🔮 Future Development & Enhancements
+
+### 🎨 UI & UX
+- [ ] 🌓 **Dark/Light Theme Support** - Dynamic theme switching
+- [ ] 🌍 **Multi-Language Support** - Support for multiple locales
+- [ ] 🌐 **PWA Support** - Make the Web version installable as a Progressive Web App
+- [ ] 🎯 **Custom Widgets** - Android/iOS home screen widgets for follow stats
+
+### ⚙️ Features
+- [ ] 🗄️ **Local Caching** - Use **SQLDelight** for offline access to user lists
+- [ ] 📬 **Daily Notifications** - Background check for new followers/unfollowers
+- [ ] 🔍 **Advanced Filtering** - Search and filter users by account age, repository count, etc.
+- [ ] 📂 **Groupings** - Tag users into custom groups (e.g., "Work", "Community")
+- [ ] 📊 **Insights Dashboard** - Visual charts for follower growth over time
+- [ ] 📥 **Export Data** - Export follower/following lists to CSV or JSON
+
+### 🛡️ Core Improvements
+- [ ] 📅 **Scheduled Actions** - Queue follow/unfollow tasks to respect GitHub rate limits
+- [ ] 🚫 **Block Management** - Manage blocks directly from the app
+- [ ] 🔄 **Auto-Cleanup** - Automatically suggest unfollowing inactive accounts
+- [ ] 🛡️ **Enhanced Security** - Biometric lock (Fingerprint/FaceID) for mobile apps
 
 ## 📚 Documentation
 
