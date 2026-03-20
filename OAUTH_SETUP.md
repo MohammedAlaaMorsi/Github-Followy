@@ -1,67 +1,58 @@
 # OAuth Setup Guide
 
-## GitHub OAuth Application Setup
+## GitHub App Setup (Recommended)
 
-To enable "Login with GitHub" functionality, you need to register an OAuth application with GitHub:
+To support multiple platforms (Android, iOS, Desktop) with a single configuration, it is highly recommended to use a **GitHub App** instead of an OAuth App. GitHub Apps allow multiple callback URLs.
 
-### 1. Create a GitHub OAuth App
+### 1. Create a GitHub App
+
+1. Go to [GitHub Settings > Developer settings > GitHub Apps](https://github.com/settings/apps)
+2. Click **"New GitHub App"**
+3. Fill in the application details:
+   - **GitHub App name**: GitHub Followy (or your preferred name)
+   - **Homepage URL**: `http://localhost:3000`
+   - **Callback URL**: 
+     - First URL: `githubfollowy://oauth/callback` (for Mobile)
+     - Click "Add callback URL" and add: `http://127.0.0.1:8080/oauth/callback` (for Desktop)
+   - **Setup URL & Webhook**: Uncheck "Active" for Webhooks if you don't need them.
+4. **Permissions**:
+   - **Account permissions**:
+     - `Followers`: Read & Write (to follow/unfollow)
+     - `Profile`: Read-only (to get user info)
+5. Click **"Create GitHub App"**
+6. Generate a **Client Secret** and note it down along with the **Client ID**.
+
+---
+
+## Alternative: GitHub OAuth Application Setup
+
+> [!IMPORTANT]
+> OAuth Apps only support ONE callback URL. If you use this, you'll need to choose one platform or use the Manual Entry fallback on Desktop.
 
 1. Go to [GitHub Settings > Developer settings > OAuth Apps](https://github.com/settings/developers)
 2. Click **"New OAuth App"**
-3. Fill in the application details:
-   - **Application name**: GitHub Followy (or your preferred name)
-   - **Homepage URL**: `http://localhost:3000` (for development)
-   - **Authorization callback URL**: 
-     - Android: `githubfollowy://oauth/callback`
-     - iOS: `githubfollowy://oauth/callback`
-     - Desktop: `http://localhost:8080/oauth/callback`
-     - Web: `https://yourdomain.com/oauth/callback` (or `http://localhost:3000/oauth/callback` for dev)
+3. **Authorization callback URL**: `githubfollowy://oauth/callback`
 
-4. Click **"Register application"**
-5. Note down your **Client ID** and **Client Secret**
+---
 
-### 2. Configure the App
+### Configure the App
 
-When you first click "Login with GitHub", the app will prompt you to enter:
-- **Client ID**: From step 5 above
-- **Client Secret**: From step 5 above
+Place your credentials in a `oauth.properties` file in the project root:
 
-These credentials are stored locally and used for the OAuth flow.
-
-### 3. Platform-Specific Setup
-
-#### Android
-Add this to your `AndroidManifest.xml`:
-```xml
-<intent-filter>
-    <action android:name="android.intent.action.VIEW" />
-    <category android:name="android.intent.category.DEFAULT" />
-    <category android:name="android.intent.category.BROWSABLE" />
-    <data
-        android:scheme="githubfollowy"
-        android:host="oauth" />
-</intent-filter>
+```properties
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
 ```
 
-#### iOS
-Add this to your `Info.plist`:
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-    <dict>
-        <key>CFBundleURLSchemes</key>
-        <array>
-            <string>githubfollowy</string>
-        </array>
-    </dict>
-</array>
-```
+### Platform-Specific Setup
+
+#### Android/iOS
+The apps are pre-configured to handle the `githubfollowy://` custom scheme.
 
 #### Desktop
-The app will open your system browser. After authorization, you may need to manually copy the callback URL.
+The desktop app will attempt to automatically capture the login via a local server on `http://127.0.0.1:8080/oauth/callback`. 
 
-#### Web
-Ensure your redirect URI matches your hosting domain.
+If you are using an **OAuth App** (not a GitHub App) and the desktop redirect fails, click **"Trouble logging in? Try Manual Entry"** on the login screen and paste the code from your browser's address bar.
 
 ## Alternative: Personal Access Token
 

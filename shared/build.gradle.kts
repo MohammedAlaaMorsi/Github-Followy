@@ -104,6 +104,7 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.datastore.preferences)
                 implementation(libs.ktor.client.cio)
+                implementation(libs.cash.sqldelight.sqlite.driver)
             }
         }
         

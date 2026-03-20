@@ -1,4 +1,4 @@
-package io.mohammedalaamorsi.followy.shared.auth
+package io.mohammedalaamorsi.followy.shared.ui.auth
 
 import androidx.compose.runtime.Composable
 import io.mohammedalaamorsi.followy.shared.ui.auth.AuthViewModel

@@ -19,10 +19,14 @@ object SecurityUtils {
         // - Classic tokens: 'ghp_'
         // - Fine-grained tokens: 'github_pat_'
         // - OAuth tokens: 'gho_'
+        // - User-to-Server tokens (GitHub Apps): 'ghu_'
+        // - Server-to-Server tokens (GitHub Apps): 'ghs_'
         // - Old format: 40 hex characters
         return token.startsWith("ghp_") || 
                token.startsWith("github_pat_") ||
                token.startsWith("gho_") ||
+               token.startsWith("ghu_") ||
+               token.startsWith("ghs_") ||
                token.matches(Regex("^[a-f0-9]{40}$")) // Old format
     }
     

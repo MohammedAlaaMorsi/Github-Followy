@@ -1,16 +1,29 @@
 package io.mohammedalaamorsi.followy.shared.data.oauth
 
-import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
 import java.awt.Desktop
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.PrintWriter
+import java.net.ServerSocket
 import java.net.URI
 import java.net.URLEncoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Desktop implementation of OAuth handler
- * Opens system browser for OAuth flow
+ * Opens system browser for OAuth flow and captures the callback automatically.
  */
 actual class GitHubOAuthHandler {
     
+    private var serverSocket: ServerSocket? = null
+    private val port = 8080
+    private val clientId = GitHubOAuthConfig.clientId
+    private val clientSecret = GitHubOAuthConfig.clientSecret
+    private val desktopRedirectUri = "http://127.0.0.1:$port/oauth/callback"
+
     actual fun startOAuthFlow(
         clientId: String,
         redirectUri: String,
@@ -18,16 +31,18 @@ actual class GitHubOAuthHandler {
         onSuccess: (code: String) -> Unit,
         onError: (String) -> Unit
     ) {
-        val authUrl = buildAuthUrl(clientId, redirectUri, scopes)
+        // Use our local redirect URI for desktop
+        val authUrl = buildAuthUrl(clientId, desktopRedirectUri, scopes)
         
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                // Start local server to capture callback
+                startLocalServer(onSuccess, onError)
+                
+                // Open browser
                 Desktop.getDesktop().browse(URI(authUrl))
                 
-                // For desktop, we need a local server to handle callback
-                // For now, show instruction to user
-                println("OAuth URL: $authUrl")
-                println("After authorizing, you'll be redirected. Copy the 'code' parameter from the URL.")
+                println("Opening browser for OAuth: $authUrl")
             } else {
                 onError("Browser not supported on this system")
             }
@@ -38,6 +53,49 @@ actual class GitHubOAuthHandler {
     
     actual fun isOAuthSupported(): Boolean {
         return Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)
+    }
+    
+    private fun startLocalServer(onSuccess: (code: String) -> Unit, onError: (String) -> Unit) {
+        // Close existing server if any
+        serverSocket?.close()
+        
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                serverSocket = ServerSocket(port)
+                println("Local server started on port $port, waiting for callback...")
+                
+                val client = serverSocket?.accept() ?: return@launch
+                val reader = BufferedReader(InputStreamReader(client.getInputStream()))
+                val out = PrintWriter(client.getOutputStream())
+                
+                val line = reader.readLine()
+                if (line != null && line.contains("GET")) {
+                    val code = line.substringAfter("code=").substringBefore(" ").substringBefore("&")
+                    
+                    // Send success response to browser
+                    out.println("HTTP/1.1 200 OK")
+                    out.println("Content-Type: text/html")
+                    out.println()
+                    out.println("<html><body><h1>Authentication Successful!</h1><p>You can close this window now.</p></body></html>")
+                    out.flush()
+                    
+                    withContext(Dispatchers.Main) {
+                        onSuccess(code)
+                    }
+                }
+                
+                client.close()
+                serverSocket?.close()
+                serverSocket = null
+                
+            } catch (e: Exception) {
+                if (serverSocket != null) {
+                    withContext(Dispatchers.Main) {
+                        onError("Failed to capture callback: ${e.message}")
+                    }
+                }
+            }
+        }
     }
     
     private fun buildAuthUrl(clientId: String, redirectUri: String, scopes: String): String {

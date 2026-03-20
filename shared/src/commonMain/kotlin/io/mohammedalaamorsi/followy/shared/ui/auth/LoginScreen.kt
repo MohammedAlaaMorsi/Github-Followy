@@ -27,6 +27,8 @@ fun LoginScreen(
 ) {
     val authState by viewModel.authState.collectAsState()
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var manualCode by remember { mutableStateOf("") }
+    var showManualEntry by remember { mutableStateOf(false) }
     
     LaunchedEffect(authState) {
         if (authState is AuthState.Success) {
@@ -168,6 +170,60 @@ fun LoginScreen(
                             )
                         )
                     }
+                }
+                
+                // Manual Code Entry Fallback (Mostly for Desktop)
+                if (showManualEntry) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = manualCode,
+                            onValueChange = { manualCode = it },
+                            label = { Text("Enter Authorization Code") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        
+                        Button(
+                            onClick = {
+                                if (manualCode.isNotBlank()) {
+                                    // Robust code extraction
+                                    var extractedCode = manualCode.trim()
+                                    if (extractedCode.contains("code=")) {
+                                        extractedCode = extractedCode.substringAfter("code=")
+                                    }
+                                    if (extractedCode.contains("&")) {
+                                        extractedCode = extractedCode.substringBefore("&")
+                                    }
+                                    
+                                    println("Manual Login: Extracted code: $extractedCode")
+                                    viewModel.exchangeOAuthCode(
+                                        code = extractedCode,
+                                        clientId = GitHubOAuthConfig.clientId,
+                                        clientSecret = GitHubOAuthConfig.clientSecret,
+                                        redirectUri = GitHubOAuthConfig.redirectUri
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = manualCode.isNotBlank() && authState !is AuthState.Loading,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Complete Login")
+                        }
+                    }
+                }
+
+                TextButton(
+                    onClick = { showManualEntry = !showManualEntry }
+                ) {
+                    Text(
+                        text = if (showManualEntry) "Hide Manual Entry" else "Trouble logging in? Try Manual Entry",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
 
                 // Security Info Card
