@@ -3,44 +3,36 @@
 A Kotlin Multiplatform app that helps you manage your GitHub followers across **Android**, **iOS**, **Desktop**, and **Web** platforms.
 
 ![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Desktop%20%7C%20Web-blue)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-purple)
-![Compose](https://img.shields.io/badge/Compose-1.9.3-green)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple)
+![Compose](https://img.shields.io/badge/Compose-1.7.3-green)
 
 ## ✨ Features
 
 ### ✅ Implemented
-- 🔐 **GitHub Authentication** - Secure login with Personal Access Token
-- 🔒 **AES-256 Encryption** - Tokens encrypted with platform-native security
+- 🔐 **GitHub OAuth 2.0** - Secure, modern web-based authentication flow
+- 🌐 **Web Target (Wasm)** - Fully functional Web version using Compose for Web (WebAssembly)
+- 🔒 **AES-256 Encryption** - Tokens encrypted with platform-native security (EncryptedSharedPreferences on Android, Keychain on iOS)
 - 👥 **Follower Analysis** - See who follows you but you don't follow back
 - 🔄 **Following Analysis** - See who you follow but they don't follow back
 - ➕ **Follow Users** - Follow users directly from the app
 - ➖ **Unfollow Users** - Unfollow users with a single tap
 - 🔄 **Real-time Updates** - UI updates instantly after actions
-- 📱 **Cross-Platform** - Works on Android, iOS, Desktop, and Web
-- 🎨 **Modern UI** - Built with Compose Multiplatform and Material 3
-- 🛡️ **Security First** - Hardware-backed encryption, secure logging, token validation
-- 🎯 **Custom App Icon** - Branded icon with "Followy" branding across all densities
+- 📱 **Cross-Platform** - Shared UI and logic across Android, iOS, Desktop, and Web
+- 🎨 **Modern UI** - Built with Compose Multiplatform 1.7.3 and Material 3
+- 🛡️ **Security First** - No hardcoded secrets; dynamic configuration loading
 - 🚀 **Splash Screen** - Native Android 12+ splash screen with custom icon
 - 🔄 **Pull-to-Refresh** - Material 3 pull-to-refresh on user lists
 - ⚙️ **Settings Screen** - Dedicated settings page with app version and logout
-- 🧭 **Type-Safe Navigation** - Kotlin serialization-based navigation with state preservation
-- 🔙 **Tab State Preservation** - Returns to the same tab when navigating back from profile
-- 👤 **User Profile Screen** - View profile details with follow/unfollow actions
-- 🔒 **Restricted User Detection** - Identifies users with private activity or disabled following
+- 🧭 **Type-Safe Navigation** - Shared navigation logic across all targets
+- 👤 **User Profile Screen** - View detailed profiles and toggle follow status
 
 ## 📸 Screenshots
 
 | Platform | Screenshot | Description |
 |-----------|------------|-------------|
-| 📱 **Mobile** | ![Login Screen](screenshots/login_screen.png) | Modern login screen with OAuth authentication and gradient design |
-| | ![Dashboard](screenshots/dashboard.png) | Three-tab dashboard showing followers, follow back, and following lists |
-| | ![Profile View](screenshots/profile.png) | User profile screen with follow/unfollow actions and user details |
-### 🚧 Planned Features
-- [ ] 🌓 **Dark/Light Theme Support** - Toggle between dark and light themes
-- [ ] 🌍 **Multi-Language Support** - Internationalization for multiple languages
-- [ ] 📬 **Daily Notifications** - WorkManager task that runs once daily to check for new followers/unfollowers and send local notifications
-- [ ] ⚙️ **Notification Settings** - Enable/disable daily notifications and configure frequency in settings
-- [ ] 🚫 **Block Users** - Block users and maintain a block list
+| 🌐 **Web** | ![Web Dashboard](screenshots/web_dashboard.png) | High-performance Wasm-based web dashboard |
+| 📱 **Mobile** | ![Login Screen](screenshots/login_screen.png) | Modern login screen with OAuth authentication |
+| | ![Dashboard](screenshots/dashboard.png) | Three-tab dashboard showing follower comparisons |
 
 ## 🚀 Quick Start
 
@@ -48,9 +40,9 @@ A Kotlin Multiplatform app that helps you manage your GitHub followers across **
 
 - JDK 17 or higher
 - Android Studio or IntelliJ IDEA
-- Xcode (for iOS development)
-- GitHub Personal Access Token ([Create one here](https://github.com/settings/tokens))
-  - Required scopes: `user`, `user:follow`
+- GitHub OAuth App ([Create one here](https://github.com/settings/developers))
+  - Homepage URL: `http://localhost:8080`
+  - Callback URL: `http://localhost:8080`
 
 ### Building & Running
 
@@ -64,96 +56,49 @@ A Kotlin Multiplatform app that helps you manage your GitHub followers across **
 ./gradlew :desktopApp:run
 ```
 
-#### 🍎 iOS
-Open `iosApp/templateIOS.xcodeproj` in Xcode and click Run
-
-#### 🌐 Web
+#### 🌐 Web (Wasm)
+The Web version uses a built-in proxy to handle GitHub's CORS restrictions during development.
 ```bash
-./gradlew :shared:jsRun
+./gradlew :webApp:wasmJsBrowserDevelopmentRun
 ```
-Or for production build:
-```bash
-./gradlew :shared:jsBrowserDistribution
-```
+Access the app at `http://localhost:8080`.
 
 ## 🏗️ Architecture
 
-The app follows **Clean Architecture** principles with clear separation of concerns:
+The app follows **Clean Architecture** principles:
 
-```
-📦 shared/src/commonMain
- ├── 📂 data
- │   ├── 📂 api          # GitHub API client (Ktor)
- │   ├── 📂 models       # Data models
- │   ├── 📂 repository   # Business logic
- │   └── 📂 local        # Token storage
- ├── 📂 di               # Dependency injection (Koin)
- └── 📂 ui
-     ├── 📂 auth         # Login screen & ViewModel
-     └── 📂 dashboard    # Dashboard & ViewModels
-```
+- **Shared Module**: Contains 100% of the UI (Compose) and Business Logic.
+- **Web module**: Specific entry point for WebAssembly target.
+- **Data Layer**: Ktor for networking, Ktor-Network-Coil for images.
+- **OAuth Provider**: Decoupled interface for providing credentials at runtime without hardcoding.
 
 ### Technology Stack
 
-- **Kotlin Multiplatform** - Share 100% of business logic
-- **Compose Multiplatform** - Modern declarative UI
-- **Ktor** - Type-safe HTTP client
-- **Koin** - Lightweight dependency injection
-- **Kotlinx Serialization** - JSON parsing
-- **Coil3** - Async image loading
-- **Coroutines & Flow** - Reactive programming
-- **Security** - AES-256 encryption, hardware-backed keystore
+- **Kotlin Multiplatform (KMP)**
+- **Compose Multiplatform 1.7.3**
+- **Coil 3** - Async image loading with Ktor network fetcher
+- **Koin** - Dependency injection
+- **Ktor 3.0** - Networking and OAuth token exchange
+- **Webpack** - Dev server with CORS proxy configuration
 
-## 🔒 Security
+## 🔒 Configuration (Web)
 
-1. **Create GitHub Token**
-   - Go to [GitHub Settings > Tokens](https://github.com/settings/tokens)
-   - Generate new token (classic)
-   - Select scopes: `user` and `user:follow`
-   - Copy the token
+For the Web version, secrets are loaded dynamically from the `index.html` to avoid including them in the compiled Wasm binary.
 
-2. **Launch the App**
-   - Enter your token on the login screen
-   - Click "Login"
+Update `webApp/src/wasmJsMain/resources/index.html`:
+```html
+<script type="text/javascript">
+    window.clientId = "YOUR_CLIENT_ID";
+    window.clientSecret = "YOUR_CLIENT_SECRET";
+</script>
+```
 
-3. **Manage Followers**
-   - **Tab 1**: Users who follow you but you don't follow back → Click "Follow"
-   - **Tab 2**: Users you follow but they don't follow back → Click "Unfollow"
-   - Click refresh icon to reload data
-
-## 📊 API Rate Limits
-
-GitHub API allows **5,000 authenticated requests per hour**. The app fetches followers/following in batches of 100 users. 
-
-## 🔮 Additional Future Enhancements
-
-- [ ] OAuth web flow authentication
-- [ ] Local caching with SQLDelight
-- [ ] Batch follow/unfollow operations
-- [ ] User search and filtering
-- [ ] Follower statistics and charts
-- [ ] Export data to CSV
-- [ ] Multiple account support
-- [ ] Follower/Following history tracking
-- [ ] In-app notifications for follow/unfollow events
 ## 📚 Documentation
 
 - [Getting Started Guide](GETTING_STARTED.md) - Quick start for developers
 - [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Technical details
-- [Developer Checklist](DEVELOPER_CHECKLIST.md) - Build and test guide
 - [Security Documentation](SECURITY.md) - Comprehensive security guide
-
-## 🤝 Contributing
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
 MIT License
-
-## 🙏 Acknowledgments
-
-- Built with [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/)
-- Powered by [GitHub API](https://docs.github.com/en/rest)
-- Template based on [Compose Multiplatform Template](https://github.com/AdamMc331/CMPTemplate)
