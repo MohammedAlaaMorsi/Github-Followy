@@ -10,11 +10,9 @@ import kotlinx.serialization.json.Json
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 import io.mohammedalaamorsi.followy.shared.data.api.GitHubApiClient
-import io.mohammedalaamorsi.followy.shared.data.local.SecureTokenStorage
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthService
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
 import io.mohammedalaamorsi.followy.shared.domain.usecase.*
-import io.mohammedalaamorsi.followy.shared.usecase.ValidateAndAuthenticateUseCase
 import io.mohammedalaamorsi.followy.shared.ui.auth.AuthViewModel
 import io.mohammedalaamorsi.followy.shared.ui.dashboard.DashboardViewModel
 import io.mohammedalaamorsi.followy.shared.ui.profile.ProfileViewModel

@@ -6,6 +6,8 @@ import io.mohammedalaamorsi.followy.shared.data.local.SecureTokenStorage
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthHandler
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubAuthConfigProvider
 import io.mohammedalaamorsi.followy.shared.data.oauth.BrowserWindowAuthConfigProvider
+import io.mohammedalaamorsi.followy.shared.Platform
+import io.mohammedalaamorsi.followy.shared.WasmPlatform
 import org.koin.dsl.module
 
 /**
@@ -16,4 +18,7 @@ val webModule = module {
     single { SecureTokenStorage() }
     single<GitHubAuthConfigProvider> { BrowserWindowAuthConfigProvider() }
     single { GitHubOAuthHandler() }
+    
+    // Register Platform implementation for Web
+    single<Platform> { WasmPlatform() }
 }

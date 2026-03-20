@@ -38,7 +38,7 @@ fun App() {
         }
     }
     
-    val authState by authViewModel.authState.collectAsState()
+    val authState by authViewModel.authStateFlow.collectAsState()
     var currentUser by remember { mutableStateOf<String?>(null) }
     val currentState = authState
     

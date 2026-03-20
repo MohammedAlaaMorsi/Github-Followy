@@ -34,7 +34,7 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     
     LaunchedEffect(username) {
-        viewModel.loadProfile(username, currentUsername, isRestricted)
+        viewModel.loadProfileLegacy(username, currentUsername, isRestricted)
     }
     
     LaunchedEffect(errorMessage) {
@@ -43,7 +43,7 @@ fun ProfileScreen(
                 message = it,
                 duration = SnackbarDuration.Short
             )
-            viewModel.clearError()
+            viewModel.clearErrorLegacy()
         }
     }
     
@@ -83,7 +83,7 @@ fun ProfileScreen(
                             text = state.message,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Button(onClick = { viewModel.loadProfile(username, currentUsername) }) {
+                        Button(onClick = { viewModel.loadProfileLegacy(username, currentUsername) }) {
                             Text("Retry")
                         }
                     }
@@ -165,7 +165,7 @@ fun ProfileScreen(
                         Button(
                             onClick = {
                                 // Toggle in profile
-                                viewModel.toggleFollow(username, currentUsername) { success ->
+                                viewModel.toggleFollowLegacy(username, currentUsername) { success ->
                                     if (success) {
                                         // Update dashboard list
                                         val currentState = viewModel.profileState.value

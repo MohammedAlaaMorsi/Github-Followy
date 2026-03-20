@@ -36,7 +36,7 @@ fun DashboardScreen(
                 message = it,
                 duration = SnackbarDuration.Long
             )
-            viewModel.clearError()
+            viewModel.clearErrorLegacy()
         }
     }
     
@@ -44,7 +44,9 @@ fun DashboardScreen(
     LaunchedEffect(username) {
         // Only load if we don't have data yet
         if (dashboardState is DashboardState.Loading) {
-            viewModel.loadDashboard(username)
+            coroutineScope.launch {
+                viewModel.loadDashboardLegacy(username)
+            }
         }
     }
     
@@ -92,7 +94,7 @@ fun DashboardScreen(
                                 text = state.message,
                                 color = MaterialTheme.colorScheme.error
                             )
-                            Button(onClick = { viewModel.loadDashboard(username) }) {
+                            Button(onClick = { viewModel.loadDashboardLegacy(username) }) {
                                 Text("Retry")
                             }
                         }
@@ -134,7 +136,7 @@ fun DashboardScreen(
                                     users = state.followersNotFollowedBack,
                                     actionText = "Follow",
                                     onAction = { user ->
-                                        viewModel.followUser(user.login)
+                                        viewModel.followUserLegacy(user.login)
                                     },
                                     isProcessing = isFollowingUser,
                                     restrictedUsers = restrictedUsers,
@@ -143,7 +145,7 @@ fun DashboardScreen(
                                     },
                                     onRefresh = {
                                         coroutineScope.launch {
-                                            viewModel.loadDashboard(username)
+                                            viewModel.loadDashboardLegacy(username)
                                         }
                                     }
                                 )
@@ -151,7 +153,7 @@ fun DashboardScreen(
                                     users = state.followingNotFollowingBack,
                                     actionText = "Unfollow",
                                     onAction = { user ->
-                                        viewModel.unfollowUser(user.login)
+                                        viewModel.unfollowUserLegacy(user.login)
                                     },
                                     isProcessing = isFollowingUser,
                                     restrictedUsers = restrictedUsers,
@@ -160,7 +162,7 @@ fun DashboardScreen(
                                     },
                                     onRefresh = {
                                         coroutineScope.launch {
-                                            viewModel.loadDashboard(username)
+                                            viewModel.loadDashboardLegacy(username)
                                         }
                                     }
                                 )
@@ -168,7 +170,7 @@ fun DashboardScreen(
                                     users = state.allFollowing,
                                     actionText = "Unfollow",
                                     onAction = { user ->
-                                        viewModel.unfollowUser(user.login)
+                                        viewModel.unfollowUserLegacy(user.login)
                                     },
                                     isProcessing = isFollowingUser,
                                     restrictedUsers = restrictedUsers,
@@ -177,7 +179,7 @@ fun DashboardScreen(
                                     },
                                     onRefresh = {
                                         coroutineScope.launch {
-                                            viewModel.loadDashboard(username)
+                                            viewModel.loadDashboardLegacy(username)
                                         }
                                     }
                                 )

@@ -14,6 +14,9 @@ import io.mohammedalaamorsi.followy.shared.di.appModule
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubAuthConfigProvider
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubAuthConfig
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
+import io.mohammedalaamorsi.followy.shared.Platform
+import io.mohammedalaamorsi.followy.shared.AndroidPlatform
+import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthHandler
 
 // DataStore delegate
 private val Application.dataStore: DataStore<Preferences> by preferencesDataStore(name = "github_followy_prefs")
@@ -39,12 +42,18 @@ val androidModule = module {
     single<DataStore<Preferences>> { 
         (androidContext().applicationContext as TemplateApp).dataStore
     }
+    
+    // Platform and OAuth integration using androidContext
+    single<Platform> { AndroidPlatform(androidContext()) }
+    factory { GitHubOAuthHandler(androidContext()) }
+    
     single { 
         SecureTokenStorage().apply {
             setDataStore(get())
             setContext(androidContext())
         }
     }
+    
     single<GitHubAuthConfigProvider> { 
         GitHubAuthConfig(
             clientId = GitHubOAuthConfig.clientId,

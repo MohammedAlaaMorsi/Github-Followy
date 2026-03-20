@@ -1,9 +1,16 @@
 package io.mohammedalaamorsi.followy.shared.data.oauth
 
+import kotlinx.coroutines.flow.SharedFlow
+
 /**
  * Platform-specific OAuth handler
  */
-expect class GitHubOAuthHandler() {
+expect class GitHubOAuthHandler(context: Any? = null) {
+    /**
+     * Shared flow for OAuth callbacks (especially for deep links on mobile)
+     */
+    val callbackFlow: SharedFlow<String>
+
     /**
      * Initiate OAuth flow - opens browser/webview for authentication
      * Returns the authorization code via callback

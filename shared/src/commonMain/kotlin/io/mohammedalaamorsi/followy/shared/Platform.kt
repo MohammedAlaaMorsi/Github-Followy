@@ -2,6 +2,5 @@ package io.mohammedalaamorsi.followy.shared
 
 interface Platform {
     val name: String
+    val context: Any?
 }
-
-expect fun getPlatform(): Platform

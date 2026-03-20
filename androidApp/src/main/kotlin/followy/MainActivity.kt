@@ -10,10 +10,10 @@ import kotlinx.coroutines.runBlocking
 import org.koin.android.ext.android.inject
 import io.mohammedalaamorsi.followy.shared.App
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
-import io.mohammedalaamorsi.followy.shared.usecase.ValidateAndAuthenticateUseCase
 import io.mohammedalaamorsi.followy.shared.ui.auth.AuthViewModel
 import io.mohammedalaamorsi.followy.shared.data.models.AuthState
 import io.mohammedalaamorsi.followy.shared.data.oauth.initOAuth
+import io.mohammedalaamorsi.followy.shared.domain.usecase.ValidateAndAuthenticateUseCase
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by inject()

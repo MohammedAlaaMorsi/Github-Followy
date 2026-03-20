@@ -6,7 +6,7 @@ import kotlinx.browser.window
  * Web implementation of OAuth handler
  * Uses window redirect for OAuth flow
  */
-actual class GitHubOAuthHandler actual constructor() {
+actual class GitHubOAuthHandler actual constructor(context: Any?) {
     
     actual fun startOAuthFlow(
         clientId: String,

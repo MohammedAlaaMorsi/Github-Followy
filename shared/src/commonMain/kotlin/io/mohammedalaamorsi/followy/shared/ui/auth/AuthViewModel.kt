@@ -2,6 +2,7 @@ package io.mohammedalaamorsi.followy.shared.ui.auth
 
 import androidx.lifecycle.viewModelScope
 import io.mohammedalaamorsi.followy.shared.data.local.AuthTokenStorage
+import io.mohammedalaamorsi.followy.shared.data.models.AuthState
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthService
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
 import io.mohammedalaamorsi.followy.shared.ui.base.BaseMviViewModel
@@ -88,10 +89,12 @@ class AuthViewModel(
         }
     }
 
-    private suspend fun logout() {
-        AuthTokenStorage.clearToken()
-        repository.clearAuthToken()
-        setState(AuthUiState(isInitializing = false))
+    fun logout() {
+        viewModelScope.launch {
+            AuthTokenStorage.clearToken()
+            repository.clearAuthToken()
+            setState(AuthUiState(isInitializing = false))
+        }
     }
     
     // Legacy support for App.kt (can be removed once UI is refactored)
@@ -111,13 +114,4 @@ class AuthViewModel(
         sendIntent(AuthIntent.ExchangeOAuthCode(code, clientId, clientSecret, redirectUri))
     fun logoutLegacy() = sendIntent(AuthIntent.Logout)
     fun setAuthState(state: AuthState) { /* No-op, managed by MVI */ }
-}
-
-// Support for old AuthState during refactor
-sealed class AuthState {
-    data object Initializing : AuthState()
-    data object Idle : AuthState()
-    data object Loading : AuthState()
-    data class Success(val user: io.mohammedalaamorsi.followy.shared.data.models.GitHubUser, val token: String) : AuthState()
-    data class Error(val message: String) : AuthState()
 }

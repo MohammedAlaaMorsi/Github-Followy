@@ -11,18 +11,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * Desktop implementation of OAuth handler
  * Opens system browser for OAuth flow and captures the callback automatically.
  */
-actual class GitHubOAuthHandler {
+actual class GitHubOAuthHandler actual constructor(context: Any?) {
     
     private var serverSocket: ServerSocket? = null
     private val port = 8080
-    private val clientId = GitHubOAuthConfig.clientId
-    private val clientSecret = GitHubOAuthConfig.clientSecret
-    private val desktopRedirectUri = "http://127.0.0.1:$port/oauth/callback"
+    
+    // For desktop, we primarily use the direct onSuccess callback, but bridge to flow for consistency
+    private val _callbackFlow = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    actual val callbackFlow: SharedFlow<String> = _callbackFlow.asSharedFlow()
 
     actual fun startOAuthFlow(
         clientId: String,
@@ -31,7 +35,8 @@ actual class GitHubOAuthHandler {
         onSuccess: (code: String) -> Unit,
         onError: (String) -> Unit
     ) {
-        // Use our local redirect URI for desktop
+        // Desktop uses a custom loopback redirect URI
+        val desktopRedirectUri = "http://127.0.0.1:$port/oauth/callback"
         val authUrl = buildAuthUrl(clientId, desktopRedirectUri, scopes)
         
         try {
@@ -80,6 +85,8 @@ actual class GitHubOAuthHandler {
                     out.println()
                     out.println("<html><body><h1>Authentication Successful!</h1><p>You can close this window now.</p></body></html>")
                     out.flush()
+                    
+                    _callbackFlow.emit(code)
                     
                     withContext(Dispatchers.Main) {
                         onSuccess(code)

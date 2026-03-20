@@ -1,14 +1,20 @@
 package io.mohammedalaamorsi.followy.shared.data.oauth
 
-import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthConfig
 import kotlinx.browser.window
 import kotlinx.datetime.Clock
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * Web implementation of OAuth handler
  * Uses window redirect for OAuth flow
  */
-actual class GitHubOAuthHandler actual constructor() {
+actual class GitHubOAuthHandler actual constructor(context: Any?) {
+    
+    // Web handles callbacks via page reload and URL parsing, but we provide the flow for consistency
+    private val _callbackFlow = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 1)
+    actual val callbackFlow: SharedFlow<String> = _callbackFlow.asSharedFlow()
     
     actual fun startOAuthFlow(
         clientId: String,
@@ -18,8 +24,6 @@ actual class GitHubOAuthHandler actual constructor() {
         onError: (String) -> Unit
     ) {
         val authUrl = buildAuthUrl(clientId, redirectUri, scopes)
-        
-        // Store callbacks in session storage for retrieval after redirect
         window.location.href = authUrl
     }
     

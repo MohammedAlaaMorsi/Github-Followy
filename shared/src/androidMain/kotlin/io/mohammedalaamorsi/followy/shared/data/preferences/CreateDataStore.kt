@@ -1,5 +1,6 @@
 package io.mohammedalaamorsi.followy.shared.data.preferences
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -10,10 +11,6 @@ import okio.Path.Companion.toPath
  *
  * Each platform will call this and provide their own [producePath] lambda
  * to look up the preference file based on the platform's standards.
- *
- * NOTE FOR TEMPLATE USERS:
- * Each platform has a `CreateDataStore.platform.kt` file that creates a DataStore.
- * You can choose to inject that by using whatever framework you prefer (expect/actual, koin, etc)
  */
 fun createDataStore(
     producePath: () -> String,

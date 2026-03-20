@@ -28,7 +28,7 @@ fun LoginScreen(
     configProvider: GitHubAuthConfigProvider = koinInject(),
     onLoginSuccess: (String, String) -> Unit
 ) {
-    val authState by viewModel.authState.collectAsState()
+    val authState by viewModel.authStateFlow.collectAsState()
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var manualCode by remember { mutableStateOf("") }
     var showManualEntry by remember { mutableStateOf(false) }
@@ -47,6 +47,26 @@ fun LoginScreen(
             println("Launcher: Found OAuth callback code in URL: $code")
             viewModel.exchangeOAuthCode(
                 code = code,
+                clientId = configProvider.clientId,
+                clientSecret = configProvider.clientSecret,
+                redirectUri = configProvider.redirectUri
+            )
+        }
+        
+        // Listen for async callbacks (Deep Links on Android, results from Desktop server)
+        oauthHandler?.callbackFlow?.collect { callbackData ->
+            println("Launcher: Received OAuth callback via Flow: $callbackData")
+            // Robust extraction if it's a full URL
+            var extractedCode = callbackData
+            if (extractedCode.contains("code=")) {
+                extractedCode = extractedCode.substringAfter("code=")
+            }
+            if (extractedCode.contains("&")) {
+                extractedCode = extractedCode.substringBefore("&")
+            }
+            
+            viewModel.exchangeOAuthCode(
+                code = extractedCode,
                 clientId = configProvider.clientId,
                 clientSecret = configProvider.clientSecret,
                 redirectUri = configProvider.redirectUri
