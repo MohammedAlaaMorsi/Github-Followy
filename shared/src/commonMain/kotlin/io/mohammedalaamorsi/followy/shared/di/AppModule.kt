@@ -13,6 +13,7 @@ import io.mohammedalaamorsi.followy.shared.data.api.GitHubApiClient
 import io.mohammedalaamorsi.followy.shared.data.local.SecureTokenStorage
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthService
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
+import io.mohammedalaamorsi.followy.shared.domain.usecase.*
 import io.mohammedalaamorsi.followy.shared.usecase.ValidateAndAuthenticateUseCase
 import io.mohammedalaamorsi.followy.shared.ui.auth.AuthViewModel
 import io.mohammedalaamorsi.followy.shared.ui.dashboard.DashboardViewModel
@@ -47,9 +48,14 @@ val appModule = module {
     singleOf(::GitHubOAuthService)
     singleOf(::GitHubRepository)
     
+    // Use Cases
     single { ValidateAndAuthenticateUseCase(get()) }
+    single { GetDashboardDataUseCase(get()) }
+    single { FollowUserUseCase(get()) }
+    single { UnfollowUserUseCase(get()) }
     
-    single { AuthViewModel(get(), get(), get()) }
-    factory { DashboardViewModel(get()) }
-    factory { ProfileViewModel(get()) }
+    // ViewModels (MVI)
+    factory { AuthViewModel(get(), get(), get()) }
+    factory { DashboardViewModel(get(), get(), get(), get()) }
+    factory { ProfileViewModel(get(), get(), get()) }
 }

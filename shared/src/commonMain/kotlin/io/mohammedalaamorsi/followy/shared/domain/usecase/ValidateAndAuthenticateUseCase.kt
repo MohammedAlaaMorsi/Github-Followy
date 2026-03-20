@@ -1,4 +1,4 @@
-package io.mohammedalaamorsi.followy.shared.usecase
+package io.mohammedalaamorsi.followy.shared.domain.usecase
 
 import io.mohammedalaamorsi.followy.shared.data.local.AuthTokenStorage
 import io.mohammedalaamorsi.followy.shared.data.models.GitHubUser

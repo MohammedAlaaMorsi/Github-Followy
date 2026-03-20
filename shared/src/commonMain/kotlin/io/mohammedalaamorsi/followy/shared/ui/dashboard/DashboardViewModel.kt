@@ -1,144 +1,142 @@
 package io.mohammedalaamorsi.followy.shared.ui.dashboard
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import io.mohammedalaamorsi.followy.shared.data.models.GitHubUser
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
+import io.mohammedalaamorsi.followy.shared.domain.usecase.*
+import io.mohammedalaamorsi.followy.shared.ui.base.BaseMviViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
+class DashboardViewModel(
+    private val repository: GitHubRepository,
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
+    private val followUserUseCase: FollowUserUseCase,
+    private val unfollowUserUseCase: UnfollowUserUseCase
+) : BaseMviViewModel<DashboardUiState, DashboardIntent, DashboardEffect>(DashboardUiState()) {
+
+    override suspend fun handleIntent(intent: DashboardIntent) {
+        when (intent) {
+            is DashboardIntent.LoadDashboard -> loadDashboard(intent.username)
+            is DashboardIntent.FollowUser -> followUser(intent.login)
+            is DashboardIntent.UnfollowUser -> unfollowUser(intent.login)
+            is DashboardIntent.ClearError -> setState(uiState.value.copy(error = null))
+        }
+    }
+
+    private suspend fun loadDashboard(username: String) {
+        setState(uiState.value.copy(isLoading = true, error = null))
+        
+        getDashboardDataUseCase(username).fold(
+            onSuccess = { data ->
+                // Basic restricted check (can be refined to its own UseCase)
+                val restricted = mutableSetOf<String>()
+                data.followersNotFollowedBack.forEach { user ->
+                    if (repository.hasPrivateActivity(user.login)) {
+                        restricted.add(user.login)
+                    }
+                }
+                
+                setState(uiState.value.copy(
+                    isLoading = false,
+                    followersNotFollowedBack = data.followersNotFollowedBack,
+                    followingNotFollowingBack = data.followingNotFollowingBack,
+                    allFollowing = data.allFollowing,
+                    restrictedUsers = restricted
+                ))
+            },
+            onFailure = { error ->
+                setState(uiState.value.copy(
+                    isLoading = false,
+                    error = error.message ?: "Failed to load dashboard"
+                ))
+            }
+        )
+    }
+
+    private suspend fun followUser(login: String) {
+        updateActionLoading(login, true)
+        
+        followUserUseCase(login).fold(
+            onSuccess = { success ->
+                if (success) {
+                    // Update state to remove followed user from list
+                    val updatedList = uiState.value.followersNotFollowedBack.filter { it.login != login }
+                    setState(uiState.value.copy(followersNotFollowedBack = updatedList))
+                }
+                updateActionLoading(login, false)
+            },
+            onFailure = { error ->
+                updateActionLoading(login, false)
+                setState(uiState.value.copy(
+                    error = error.message ?: "Failed to follow user",
+                    restrictedUsers = uiState.value.restrictedUsers + login
+                ))
+            }
+        )
+    }
+
+    private suspend fun unfollowUser(login: String) {
+        updateActionLoading(login, true)
+        
+        unfollowUserUseCase(login).fold(
+            onSuccess = { success ->
+                if (success) {
+                    val updatedList = uiState.value.followingNotFollowingBack.filter { it.login != login }
+                    setState(uiState.value.copy(followingNotFollowingBack = updatedList))
+                }
+                updateActionLoading(login, false)
+            },
+            onFailure = { error ->
+                updateActionLoading(login, false)
+                setState(uiState.value.copy(error = error.message ?: "Failed to unfollow user"))
+            }
+        )
+    }
+
+    private fun updateActionLoading(login: String, isLoading: Boolean) {
+        val updatedMap = uiState.value.isFollowingInProgress.toMutableMap()
+        if (isLoading) updatedMap[login] = true else updatedMap.remove(login)
+        setState(uiState.value.copy(isFollowingInProgress = updatedMap))
+    }
+
+    // Legacy support BRIDGE (for DashboardScreen.kt refactor)
+    val dashboardState = uiState.map { state ->
+        when {
+            state.isLoading -> DashboardState.Loading
+            state.error != null -> DashboardState.Error(state.error)
+            else -> DashboardState.Success(
+                followersNotFollowedBack = state.followersNotFollowedBack,
+                followingNotFollowingBack = state.followingNotFollowingBack,
+                allFollowing = state.allFollowing
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardState.Loading)
+
+    val isFollowingUser = uiState.map { it.isFollowingInProgress }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    val errorMessage = uiState.map { it.error }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val restrictedUsers = uiState.map { it.restrictedUsers }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    // Bridge functions for legacy UI
+    fun loadDashboardLegacy(username: String) = sendIntent(DashboardIntent.LoadDashboard(username))
+    fun followUserLegacy(username: String) = sendIntent(DashboardIntent.FollowUser(username))
+    fun unfollowUserLegacy(username: String) = sendIntent(DashboardIntent.UnfollowUser(username))
+    fun clearErrorLegacy() = sendIntent(DashboardIntent.ClearError)
+}
+
+// Support for old DashboardState during refactor
 sealed class DashboardState {
     data object Loading : DashboardState()
     data class Success(
-        val followersNotFollowedBack: List<GitHubUser>,
-        val followingNotFollowingBack: List<GitHubUser>,
-        val allFollowing: List<GitHubUser>
+        val followersNotFollowedBack: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>,
+        val followingNotFollowingBack: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>,
+        val allFollowing: List<io.mohammedalaamorsi.followy.shared.data.models.GitHubUser>
     ) : DashboardState()
     data class Error(val message: String) : DashboardState()
-}
-
-class DashboardViewModel(
-    private val repository: GitHubRepository
-) : ViewModel() {
-    
-    private val _dashboardState = MutableStateFlow<DashboardState>(DashboardState.Loading)
-    val dashboardState: StateFlow<DashboardState> = _dashboardState.asStateFlow()
-    
-    private val _isFollowingUser = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val isFollowingUser: StateFlow<Map<String, Boolean>> = _isFollowingUser.asStateFlow()
-    
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-    
-    // Session-based tracking (cleared on app restart)
-    private val _restrictedUsers = MutableStateFlow<Set<String>>(emptySet())
-    val restrictedUsers: StateFlow<Set<String>> = _restrictedUsers.asStateFlow()
-    
-    fun clearError() {
-        _errorMessage.value = null
-    }
-    
-    fun loadDashboard(username: String) {
-        println("DashboardViewModel: loadDashboard called for username: $username")
-        viewModelScope.launch {
-            _dashboardState.value = DashboardState.Loading
-            
-            repository.analyzeFollowRelationships(username).fold(
-                onSuccess = { (followersNotFollowedBack, followingNotFollowingBack) ->
-                    // Check which users have private/restricted activity BEFORE updating UI
-                    val restricted = mutableSetOf<String>()
-                    followersNotFollowedBack.forEach { user ->
-                        if (repository.hasPrivateActivity(user.login)) {
-                            restricted.add(user.login)
-                        }
-                    }
-                    _restrictedUsers.value = restricted
-                    
-                    // Get all following users for the new tab
-                    repository.getAllFollowing(username).fold(
-                        onSuccess = { allFollowing ->
-                            _dashboardState.value = DashboardState.Success(
-                                followersNotFollowedBack = followersNotFollowedBack,
-                                followingNotFollowingBack = followingNotFollowingBack,
-                                allFollowing = allFollowing
-                            )
-                        },
-                        onFailure = { error ->
-                            _dashboardState.value = DashboardState.Error(
-                                "Failed to load following list: ${error.message}"
-                            )
-                        }
-                    )
-                },
-                onFailure = { error ->
-                    _dashboardState.value = DashboardState.Error(
-                        error.message ?: "Failed to load dashboard"
-                    )
-                }
-            )
-        }
-    }
-    
-    fun followUser(username: String, onComplete: (Boolean) -> Unit = {}) {
-        viewModelScope.launch {
-            _isFollowingUser.value += (username to true)
-            
-            repository.followUser(username).fold(
-                onSuccess = { success ->
-                    if (success) {
-                        // Refresh dashboard after following
-                        val currentState = _dashboardState.value
-                        if (currentState is DashboardState.Success) {
-                            // Remove user from followersNotFollowedBack list
-                            val updatedFollowers = currentState.followersNotFollowedBack
-                                .filter { it.login != username }
-                            _dashboardState.value = currentState.copy(
-                                followersNotFollowedBack = updatedFollowers
-                            )
-                        }
-                    }
-                    _isFollowingUser.value -= username
-                    onComplete(success)
-                },
-                onFailure = { error ->
-                    _isFollowingUser.value = _isFollowingUser.value - username
-                    // Mark user as restricted on any follow failure (blocked, deleted, disabled following, etc.)
-                    _restrictedUsers.value = _restrictedUsers.value + username
-                    _errorMessage.value = error.message ?: "Failed to follow user"
-                    onComplete(false)
-                }
-            )
-        }
-    }
-    fun unfollowUser(username: String, onComplete: (Boolean) -> Unit = {}) {
-        viewModelScope.launch {
-            _isFollowingUser.value += (username to true)
-            
-            repository.unfollowUser(username).fold(
-                onSuccess = { success ->
-                    if (success) {
-                        // Refresh dashboard after unfollowing
-                        val currentState = _dashboardState.value
-                        if (currentState is DashboardState.Success) {
-                            // Remove user from followingNotFollowingBack list
-                            val updatedFollowing = currentState.followingNotFollowingBack
-                                .filter { it.login != username }
-                            _dashboardState.value = currentState.copy(
-                                followingNotFollowingBack = updatedFollowing
-                            )
-                        }
-                    }
-                    _isFollowingUser.value -= username
-                    onComplete(success)
-                },
-                onFailure = { error ->
-                    _isFollowingUser.value -= username
-                    _errorMessage.value = error.message ?: "Failed to unfollow user"
-                    onComplete(false)
-                }
-            )
-        }
-    }
 }

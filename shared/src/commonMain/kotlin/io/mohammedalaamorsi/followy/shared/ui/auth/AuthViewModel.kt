@@ -1,87 +1,123 @@
 package io.mohammedalaamorsi.followy.shared.ui.auth
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import io.mohammedalaamorsi.followy.shared.data.local.AuthTokenStorage
-import io.mohammedalaamorsi.followy.shared.data.models.AuthState
 import io.mohammedalaamorsi.followy.shared.data.oauth.GitHubOAuthService
 import io.mohammedalaamorsi.followy.shared.data.repository.GitHubRepository
-import io.mohammedalaamorsi.followy.shared.usecase.ValidateAndAuthenticateUseCase
+import io.mohammedalaamorsi.followy.shared.ui.base.BaseMviViewModel
+import io.mohammedalaamorsi.followy.shared.domain.usecase.ValidateAndAuthenticateUseCase
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val repository: GitHubRepository,
     private val oauthService: GitHubOAuthService? = null,
     private val validateAndAuthenticateUseCase: ValidateAndAuthenticateUseCase
-) : ViewModel() {
-    
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
-    
-    fun setAuthState(state: AuthState) {
-        _authState.value = state
+) : BaseMviViewModel<AuthUiState, AuthIntent, AuthEffect>(AuthUiState()) {
+
+    init {
+        sendIntent(AuthIntent.CheckSavedToken)
     }
-    
-    fun authenticateWithToken(token: String) {
-        println("AuthViewModel: authenticateWithToken called with token: ${token.take(10)}...")
+
+    override suspend fun handleIntent(intent: AuthIntent) {
+        when (intent) {
+            is AuthIntent.LoginWithToken -> authenticate(intent.token)
+            is AuthIntent.ExchangeOAuthCode -> exchangeCode(intent)
+            is AuthIntent.Logout -> logout()
+            is AuthIntent.CheckSavedToken -> checkToken()
+        }
+    }
+
+    private suspend fun authenticate(token: String) {
+        setState(uiState.value.copy(isLoading = true, loginError = null))
         
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            
-            validateAndAuthenticateUseCase(token).fold(
-                onSuccess = { (user, token) ->
-                    println("AuthViewModel: Successfully got user: ${user.login}")
-                    _authState.value = AuthState.Success(user, token)
-                    println("AuthViewModel: AuthState set to Success")
-                },
-                onFailure = { error ->
-                    println("AuthViewModel: Failed to get user: ${error.message}")
-                    _authState.value = AuthState.Error(
-                        error.message ?: "Authentication failed"
-                    )
-                }
-            )
-        }
-    }
-    
-    fun exchangeOAuthCode(
-        code: String,
-        clientId: String,
-        clientSecret: String,
-        redirectUri: String
-    ) {
-        viewModelScope.launch {
-            println("AuthViewModel: Starting OAuth code exchange...")
-            _authState.value = AuthState.Loading
-            
-            oauthService?.exchangeCodeForToken(code, clientId, clientSecret, redirectUri)
-                ?.fold(
-                    onSuccess = { token ->
-                        println("AuthViewModel: Got token, authenticating...")
-                        // Now authenticate with the token
-                        authenticateWithToken(token)
-                    },
-                    onFailure = { error ->
-                        println("AuthViewModel: Failed to exchange code: ${error.message}")
-                        _authState.value = AuthState.Error(
-                            "Failed to exchange OAuth code: ${error.message}"
-                        )
-                    }
-                ) ?: run {
-                println("AuthViewModel: OAuth service not available")
-                _authState.value = AuthState.Error("OAuth service not available")
+        validateAndAuthenticateUseCase(token).fold(
+            onSuccess = { (user, token) ->
+                setState(uiState.value.copy(
+                    isLoading = false,
+                    isInitializing = false,
+                    user = user,
+                    token = token
+                ))
+                setEffect(AuthEffect.NavigateToDashboard(user))
+            },
+            onFailure = { error ->
+                setState(uiState.value.copy(
+                    isLoading = false,
+                    isInitializing = false,
+                    loginError = error.message ?: "Authentication failed"
+                ))
             }
+        )
+    }
+
+    private suspend fun exchangeCode(intent: AuthIntent.ExchangeOAuthCode) {
+        setState(uiState.value.copy(isLoading = true, loginError = null))
+        
+        oauthService?.exchangeCodeForToken(
+            intent.code,
+            intent.clientId,
+            intent.clientSecret,
+            intent.redirectUri
+        )?.fold(
+            onSuccess = { token ->
+                authenticate(token)
+            },
+            onFailure = { error ->
+                setState(uiState.value.copy(
+                    isLoading = false,
+                    loginError = "OAuth failed: ${error.message}"
+                ))
+            }
+        ) ?: run {
+            setState(uiState.value.copy(
+                isLoading = false,
+                loginError = "OAuth service unavailable"
+            ))
         }
+    }
+
+    private suspend fun checkToken() {
+        val savedToken = AuthTokenStorage.getToken()
+        if (savedToken != null) {
+            authenticate(savedToken)
+        } else {
+            setState(uiState.value.copy(isInitializing = false))
+        }
+    }
+
+    private suspend fun logout() {
+        AuthTokenStorage.clearToken()
+        repository.clearAuthToken()
+        setState(AuthUiState(isInitializing = false))
     }
     
-    fun logout() {
-        viewModelScope.launch {
-            AuthTokenStorage.clearToken()
-            repository.clearAuthToken()
-            _authState.value = AuthState.Idle
+    // Legacy support for App.kt (can be removed once UI is refactored)
+    val authStateFlow = uiState.map { state ->
+        when {
+            state.isInitializing -> AuthState.Initializing
+            state.isLoading -> AuthState.Loading
+            state.user != null && state.token != null -> AuthState.Success(state.user, state.token)
+            state.loginError != null -> AuthState.Error(state.loginError)
+            else -> AuthState.Idle
         }
-    }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AuthState.Initializing)
+
+    // Bridge functions for legacy UI
+    fun authenticateWithToken(token: String) = sendIntent(AuthIntent.LoginWithToken(token))
+    fun exchangeOAuthCode(code: String, clientId: String, clientSecret: String, redirectUri: String) = 
+        sendIntent(AuthIntent.ExchangeOAuthCode(code, clientId, clientSecret, redirectUri))
+    fun logoutLegacy() = sendIntent(AuthIntent.Logout)
+    fun setAuthState(state: AuthState) { /* No-op, managed by MVI */ }
+}
+
+// Support for old AuthState during refactor
+sealed class AuthState {
+    data object Initializing : AuthState()
+    data object Idle : AuthState()
+    data object Loading : AuthState()
+    data class Success(val user: io.mohammedalaamorsi.followy.shared.data.models.GitHubUser, val token: String) : AuthState()
+    data class Error(val message: String) : AuthState()
 }
